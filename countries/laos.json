@@ -1,0 +1,20 @@
+{
+  "id": "laos",
+  "name": "Laos",
+  "languages": ["en", "lo"],
+  "demo_area": "Xieng Khouang",
+  "strike_source": {
+    "type": "thor",
+    "dataset": "data/thor/thor_data_vietnam.csv",
+    "country_filter": "LAOS"
+  },
+  "imagery": ["kh9_barthelme_tri_border_area", "sentinel2", "planet_nicfi"],
+  "boundaries": {"source": "gadm", "country_code": "LAO", "admin_level": 1},
+  "osm_extract": "laos",
+  "stats_source": "Published Laos NRA province-level statistics (not IMSMA polygons)",
+  "_todo": [
+    "THOR csv requires a manual data.world download into data/thor/",
+    "Confirm exact THOR country-column value once the csv header is available",
+    "Pin GADM/OSM extract URLs and checksums in docs/data-manifest.md"
+  ]
+}

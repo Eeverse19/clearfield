@@ -1,0 +1,15 @@
+.env
+.venv/
+.uv-cache/
+.uv-python/
+.uv-tmp/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+# Datasets are never committed; scripts/download_data.* reproduces data/.
+# Keep only the layout note and placeholder.
+data/*
+!data/README.md
+!data/.gitkeep
+*.db
+*.sqlite3

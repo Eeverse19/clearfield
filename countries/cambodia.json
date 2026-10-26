@@ -1,0 +1,21 @@
+{
+  "id": "cambodia",
+  "name": "Cambodia",
+  "languages": ["en", "km"],
+  "demo_area": null,
+  "strike_source": {
+    "type": "thor",
+    "dataset": "data/thor/thor_data_vietnam.csv",
+    "country_filter": "CAMBODIA"
+  },
+  "imagery": ["sentinel2", "planet_nicfi"],
+  "boundaries": {"source": "gadm", "country_code": "KHM", "admin_level": 1},
+  "osm_extract": "cambodia",
+  "stats_source": "Published Cambodia CMAA province-level statistics (not IMSMA polygons)",
+  "_todo": [
+    "demo_area: pick one province from THOR density once the csv is available",
+    "THOR csv requires a manual data.world download into data/thor/",
+    "Confirm exact THOR country-column value once the csv header is available",
+    "Pin GADM/OSM extract URLs and checksums in docs/data-manifest.md"
+  ]
+}

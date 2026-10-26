@@ -1,0 +1,33 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "clearfield"
+version = "0.0.0"
+description = "Clearance-prioritization platform for bombed countries (scaffold)"
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi",
+    "pyproj>=3.7.2",
+    "shapely>=2.2.0",
+    "uvicorn[standard]",
+]
+
+[dependency-groups]
+dev = [
+    "pytest",
+    "httpx",
+]
+
+# Scaffold is a flat multi-package layout (backend/, pipelines/, agent/, field/),
+# not an installable wheel yet.
+[tool.hatch.build.targets.wheel]
+packages = ["backend", "pipelines", "agent", "field"]
+
+[tool.uv]
+package = false
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]

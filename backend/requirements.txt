@@ -1,0 +1,6 @@
+# pip fallback only. Canonical env is uv + pyproject.toml at the repo root
+# (uv sync / uv run). Keep this list in sync with [project] dependencies.
+fastapi
+uvicorn[standard]
+pyproj
+shapely
