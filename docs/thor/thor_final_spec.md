@@ -64,8 +64,11 @@ disagree, this file picks one resolution and marks the superseded text.
    above); the list documents which `TgtCountry` values the cross-check map expects
    for that profile. C §1.1's sentence "a THOR row belongs to the profile iff ..."
    is superseded by: "a row belongs to the zone its coordinates fall in".
-3. **Cambodia demo pick — B's intersection rule wins over C's "top density" wording.**
-   See §4: pick is **KHM.20_1 Rotanokiri**, NOT pure-THOR argmax KHM.25_1.
+3. **Cambodia demo pick — owner override 2026-10-27.** Earlier draft (§4
+   below) picked Rotanokiri via crater-coverage ∩ density. Owner confirmed
+   **Tbong Khmum** (`KHM.25_1`, display `"Tbong Khmum"`). That is now the
+   profile value. Rotanokiri remains the only high-density Cambodia zone
+   with Barthelme crater coverage today.
 4. **Zero-mission zones -> 0.0 (B §5)** stands as contract, but note no real zone
    hits it (min is KHM.12_1 KrongPailin, 1 mission, 0.00093/km2). It still matters
    for `--country` scope and tests.
@@ -176,22 +179,22 @@ README, WORKFLOW_SYNTHESIS; `backend/app/profiles.py` checks top-level presence 
 the same PR: nested validation in `load_country` (after :33) requiring
 `strike_source.country_filter` to be a non-empty list of strings, `ValueError` else.
 
-## 4. Cambodia demo province (U11) — DECIDED: `KHM.20_1` Rotanokiri
+## 4. Cambodia demo province (U11) — DECIDED: `KHM.25_1` Tbong Khmum
 
-Rule (B §10, synthesis U11 + §2.4): among cambodia zones with
-`crater_evidence IS NOT NULL`, highest `strike_density`; tie-break higher
-`crater_evidence`, then `id` ASC. **Verified read-only in `data/clearfield.db`
-today: exactly 2 of 25 Cambodia zones have non-NULL `crater_evidence`** —
-`KHM.20_1` Rotanokiri = 0.4649884019 and `KHM.22_1` StoengTreng = 0.0150573178
-(other 23 NULL). Scan densities: **KHM.20_1 = 1.391315 missions/km2** (16,391
-missions, 11,780.939 km2) > KHM.22_1 = 0.790551 (9,503 missions). KHM.20_1 also wins
-the crater tie-break. **Pick: `"demo_area": "KHM.20_1"` in `countries/cambodia.json`**,
-delete its demo `_todo` line, flip `tests/test_profiles.py:15-18` — same commit.
-Recorded but NOT picked: pure-THOR argmax `KHM.25_1` TbongKhmum, 6.371627/km2
-(31,419 missions) — `crater_evidence` is NULL there today, so it is unscorable
-(`scoring.py:40-42`); revisit only when a SAM crater source covers it. `seed_thor.py`
-never writes profiles; parent applies this after the real seed run confirms the
-densities above (or `--country cambodia --dry-run`).
+Owner confirmed 2026-10-27: `"demo_area": "Tbong Khmum"` in
+`countries/cambodia.json` (display name; GADM `admin_name` is `TbongKhmum`,
+zone `KHM.25_1`). Pure-THOR argmax in `thor_scan.json`: 31,419 missions,
+6.371627/km².
+
+Earlier crater ∩ density rule (kept for history, **not** the pick): among
+cambodia zones with `crater_evidence IS NOT NULL`, highest `strike_density`
+would have been `KHM.20_1` Rotanokiri. Verified read-only in
+`data/clearfield.db`: exactly 2 of 25 Cambodia zones have non-NULL
+`crater_evidence` — `KHM.20_1` Rotanokiri = 0.4649884019 and `KHM.22_1`
+StoengTreng = 0.0150573178 (other 23 NULL, including Tbong Khmum). Tbong
+Khmum is therefore unscorable (`scoring.py`) until a crater source covers
+it; that is an imagery/SAM gap, not a reason to change the demo province.
+`seed_thor.py` never writes profiles.
 
 ## 5. Doc edits with real numbers filled in (apply only after the seed run lands)
 
@@ -242,8 +245,8 @@ NOT, so still 0 zones ranked."
 - `README.md`: :5 -> "No zone is rankable yet — exposure (OSM) has not landed (THOR
   strike density seeded: 3,419,286 missions over 106 zones)"; :9 REPLACE both stale
   page numbers with observed: Laos **1,087,019** recorded missions with coordinates,
-  Cambodia **147,097**; :30 -> "Cambodia (KHM.20_1 Rotanokiri, picked per §4 of the
-  THOR spec)"; :50 -> "# scores 0 until OSM lands (by design)"; :56 -> "THOR is a
+  Cambodia **147,097**; :30 -> "Cambodia (Tbong Khmum / KHM.25_1, owner-confirmed
+  2026-10-27)"; :50 -> "# scores 0 until OSM lands (by design)"; :56 -> "THOR is a
   manual data.world download (never script-pinned; see manifest section 4);
   UXOTi_NPA, AMLID, and OSM downloads are not pinned yet."; add the
   `python scripts/seed_thor.py` step after :47.
@@ -257,7 +260,7 @@ NOT, so still 0 zones ranked."
   the §0 numbers; title "Blocked on META_API_KEY / THOR / OSM" -> "Blocked on
   META_API_KEY / OSM"; :530-531 strike_density NULL closes but "0 zones scorable,
   demo Moments 1-2 impossible" does NOT (OSM below); :532-533 demo_area closes with
-  KHM.20_1; `agent/templates/en/survey-report.md:4` `{{ zone.strike_density }}`
+  Tbong Khmum (`KHM.25_1`); `agent/templates/en/survey-report.md:4` `{{ zone.strike_density }}`
   becomes fillable.
 - Sweep for the same stale fact (Task B PR): `frontend/index.html:6`,
   `frontend/README.md:5`, `pipelines/scoring.py:15,121`, `scripts/seed_db.py:3,8-9`
@@ -284,7 +287,7 @@ with `Geod`):
 Profile tests (same PR): `dataset` endswith `THOR_Vietnam_7_31_2013.csv` for all 3;
 `country_filter` is a non-empty list; vietnam == `["SOUTH VIETNAM", "NORTH VIETNAM"]`;
 if nested `load_country` validation ships, a string-filter fixture raises
-`ValueError`. Flip `tests/test_profiles.py:15-18` for `demo_area == "KHM.20_1"`.
+`ValueError`. Profile test already asserts `demo_area == "Tbong Khmum"`.
 `tests/test_api.py:49-51` unaffected (ids only).
 
 ## 7. What remains blocked (THOR changes none of this)

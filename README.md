@@ -2,7 +2,7 @@
 
 **A clearance-prioritization platform for bombed countries.** ClearField fuses declassified bombing records with satellite imagery and human geography to rank which land should be surveyed and cleared first, explains every ranking in plain language, and lets field workers record new finds offline — built once, reusable in any bombed country by swapping a data profile.
 
-> Project status: scaffold + first data tranche (Oct 27, 2026). In place and tested: repo structure, country profiles, schemas, deterministic scoring, `/zones` + `/finds` over the local DB, and a seeded database (106 GADM zones; 541,397 real Barthelme craters; 9 zones with crater evidence; OSM exposure computed for all 18 Laos + 25 Cambodia zones by `pipelines/osm_exposure.py`). No zone is rankable yet — strike density (THOR) has not landed, so scoring still correctly scores 0 zones; `META_API_KEY` is still to be provided, and there are no live model calls. Barthelme coverage (lat 14.17–17.03) does not reach the Laos demo province Xieng Khouang. Details: [`WORKFLOW_SYNTHESIS.md`](WORKFLOW_SYNTHESIS.md). This README describes the target state.
+> Project status: scaffold + first data tranche (Oct 27, 2026). In place and tested: repo structure, country profiles, schemas, deterministic scoring, `/zones` + `/finds` over the local DB, and a seeded database (106 GADM zones; 541,397 real Barthelme craters; 9 zones with crater evidence; OSM exposure computed for all 18 Laos + 25 Cambodia zones by `pipelines/osm_exposure.py`). No zone is rankable yet — strike density (THOR) has not landed, so scoring still correctly scores 0 zones; `META_API_KEY` is still to be provided, and there are no live model calls. Barthelme coverage (lat 14.17–17.03) does not reach the Laos demo province Xiangkhoang. Details: [`WORKFLOW_SYNTHESIS.md`](WORKFLOW_SYNTHESIS.md). This README describes the target state.
 
 ## The problem
 
@@ -11,7 +11,7 @@ Laos is the most heavily bombed country per capita in history — 1,041,519 reco
 ## What it does
 
 1. **A ranked priority map.** Zones ranked by a deterministic, auditable formula: THOR strike density × crater evidence from satellite imagery × proximity to villages, farmland, schools, and roads (OpenStreetMap), minus land already surveyed. Same inputs, same score, every component stored.
-2. **A bilingual query and reporting agent.** Ask in English, Lao, or Khmer — "which unsurveyed areas near farmland in Xieng Khouang are highest priority, and why?" — and get a map plus a briefing citing the real score components, never invented numbers. It also generates structured survey reports from templates.
+2. **A bilingual query and reporting agent.** Ask in English, Lao, or Khmer — "which unsurveyed areas near farmland in Xiangkhoang are highest priority, and why?" — and get a map plus a briefing citing the real score components, never invented numbers. It also generates structured survey reports from templates.
 3. **Offline field triage.** A worker photographs a find, records GPS and Lao notes with no connectivity, and a local model turns it into a structured record in the same database. It syncs when connectivity returns and becomes new evidence for the ranking.
 
 ## How it works
@@ -27,7 +27,7 @@ One job per model: **SAM sees, code scores, Spark explains, Glimmer captures off
 
 ## Multi-country by design
 
-Country is a configuration, never code. Everything country-specific lives in one profile under [`countries/`](countries/) (strike source/filter, imagery set, boundaries, OSM extract, stats source, languages). Demo scope: **Laos (Xieng Khouang) + Cambodia** (one province, picked from THOR density). Cambodia and Vietnam are nearly free (same THOR file, same ordnance); WWII Europe needs re-validation; modern conflicts (Ukraine, Colombia, Angola, Bosnia) swap in UCDP/ACLED + UNOSAT data.
+Country is a configuration, never code. Everything country-specific lives in one profile under [`countries/`](countries/) (strike source/filter, imagery set, boundaries, OSM extract, stats source, languages). Demo scope: **Laos (Xiangkhoang) + Cambodia (Tbong Khmum)**. Cambodia and Vietnam are nearly free (same THOR file, same ordnance); WWII Europe needs re-validation; modern conflicts (Ukraine, Colombia, Angola, Bosnia) swap in UCDP/ACLED + UNOSAT data.
 
 ## What it is not
 

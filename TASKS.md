@@ -72,11 +72,13 @@ that is already on disk — only the ingestion code is missing (P0-1).
   first"). `demo/cached-responses/` contains only a README, so the cached
   demo path (`docs/demo-script.md`) has nothing to serve yet either.
   Blocked on `META_API_KEY` for live calls only — cache-first needs P0-1.
-- [ ] **P0-5. Pick the Cambodia demo province. (S, after P0-1)**
-  `countries/cambodia.json:16` `_todo`: "pick one province from THOR
-  density once the csv is available" — it now is. Pure-THOR top candidate
-  from the scan: Tbong Khmum (KHM.25_1, ≈ 6.37 missions/km²). Set
-  `demo_area` once densities are seeded.
+- [x] **P0-5. Pick the Cambodia demo province. — DONE 2026-10-27.**
+  Owner confirmed **Tbong Khmum** (GADM `TbongKhmum`, `KHM.25_1`). Set in
+  `countries/cambodia.json` as `"demo_area": "Tbong Khmum"` (display name,
+  same GADM-name convention as Laos `"Xiangkhoang"`). THOR scan: 31,419 missions,
+  ≈ 6.37/km², #1 Cambodia on both count and density. Barthelme
+  `crater_evidence` is still NULL there — ranking that province still
+  needs a crater source (P1-7 analogue) plus THOR ingest (P0-1).
 
 ## P1 — core features still stubbed
 
@@ -98,9 +100,9 @@ that is already on disk — only the ingestion code is missing (P0-1).
   Pin the extract URL/checksum in `docs/data-manifest.md`
   (`countries/vietnam.json` `_todo`).
 - [ ] **P1-7. Barthelme coverage gap for the Laos demo. (M)**
-  Crater predictions cover lat 14.17–17.03 and don't reach Xieng Khouang
+  Crater predictions cover lat 14.17–17.03 and don't reach Xiangkhoang
   (`README.md:5`), so the demo province has no crater evidence. Decide:
-  new imagery/predictions for Xieng Khouang, or move the demo area.
+  new imagery/predictions for Xiangkhoang, or move the demo area.
 - [ ] **P1-8. PostGIS target. (M)** Runtime is SQLite
   (`db/schema.local.sql`); `db/schema.sql` (PostGIS) is the target.
   Migration path + `DATABASE_URL` wiring per `docs/architecture.md`.

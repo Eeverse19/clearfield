@@ -12,7 +12,8 @@ def test_required_fields_present():
             assert field in profile, f"{profile['id']} missing {field}"
 
 
-def test_laos_demo_area_and_cambodia_pending():
-    assert load_country("laos")["demo_area"] == "Xieng Khouang"
-    # Cambodia's demo province is picked from THOR density once data exists.
-    assert load_country("cambodia")["demo_area"] is None
+def test_laos_and_cambodia_demo_areas():
+    # GADM admin_name for LAO.18_1.
+    assert load_country("laos")["demo_area"] == "Xiangkhoang"
+    # Owner-confirmed 2026-10-27. GADM admin_name is TbongKhmum (KHM.25_1).
+    assert load_country("cambodia")["demo_area"] == "Tbong Khmum"

@@ -2,7 +2,7 @@
   "id": "cambodia",
   "name": "Cambodia",
   "languages": ["en", "km"],
-  "demo_area": null,
+  "demo_area": "Tbong Khmum",
   "strike_source": {
     "type": "thor",
     "dataset": "data/thor/thor_data_vietnam.csv",
@@ -13,7 +13,6 @@
   "osm_extract": "data/osm/cambodia-261025.osm.pbf",
   "stats_source": "Published Cambodia CMAA province-level statistics (not IMSMA polygons)",
   "_todo": [
-    "demo_area: pick one province from THOR density once the csv is available",
     "THOR csv requires a manual data.world download into data/thor/",
     "Confirm exact THOR country-column value once the csv header is available"
   ]
