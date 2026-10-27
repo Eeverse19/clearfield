@@ -3,6 +3,7 @@
   "name": "Laos",
   "languages": ["en", "lo"],
   "demo_area": "Xiangkhoang",
+  "demo_zone_id": "LAO.18_1",
   "strike_source": {
     "type": "thor",
     "dataset": "data/thor/thor_data_vietnam.csv",

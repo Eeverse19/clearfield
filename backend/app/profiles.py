@@ -9,6 +9,7 @@ REQUIRED_FIELDS = (
     "name",
     "languages",
     "demo_area",
+    "demo_zone_id",
     "strike_source",
     "imagery",
     "boundaries",

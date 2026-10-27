@@ -18,6 +18,7 @@ def country_arg() -> dict:
 
 def not_implemented(stage: str, profile: dict, needs: str) -> None:
     sys.exit(
-        f"[{stage}] country={profile['id']} demo_area={profile['demo_area']!r}: "
+        f"[{stage}] country={profile['id']} demo_area={profile['demo_area']!r} "
+        f"demo_zone_id={profile.get('demo_zone_id')!r}: "
         f"not implemented yet (scaffold). Needs: {needs}."
     )

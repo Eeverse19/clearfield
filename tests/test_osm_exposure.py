@@ -93,6 +93,7 @@ def write_tiny_pbf(path):
         (12, [11, 12, 13, 14, 11], {"landuse": "farmland"}),
         (13, [999], {"building": "yes"}),                # unresolvable -> invalid
         (14, [9, 10], {"natural": "water"}),             # not exposure
+        (15, [9, 999], {"highway": "residential"}),      # partial: placed from node 9
     ]
     strings = [""]
 
@@ -150,18 +151,40 @@ def test_feature_categories():
 
 def test_parse_tiny_pbf(tmp_path):
     points, info = parse_pbf_features(write_tiny_pbf(tmp_path / "tiny.osm.pbf"))
-    assert info["nodes"] == 15 and info["ways"] == 5 and info["relations"] == 0
-    assert info["exposure_nodes"] == 4 and info["exposure_ways"] == 4
-    assert info["invalid_ways"] == 1  # way 13 refs a missing node
-    assert info["features"] == 7 and len(points) == 7
+    assert info["nodes"] == 15 and info["ways"] == 6 and info["relations"] == 0
+    assert info["exposure_nodes"] == 4 and info["exposure_ways"] == 5
+    assert info["invalid_ways"] == 1  # way 13 refs only a missing node
+    assert info["partial_ways"] == 1  # way 15 placed from node 9, ref 999 missing
+    assert info["features"] == 8 and len(points) == 8
     assert info["by_category"] == {"building": 2, "place": 2, "school": 1,
-                                   "highway": 1, "landuse": 1}
+                                   "highway": 2, "landuse": 1}
     village = next(p for p in points if p[2] == {"place"} and p[0] == pytest.approx(100.5))
     assert village[1] == pytest.approx(15.5)
-    # Building way representative point = mean of its node coords.
+    # Building way representative point = mean of its 4 distinct corners
+    # (closed way [5,6,7,8,5]: closing repeat excluded; (100.2+100.3+100.3+100.2)/4).
     building_pts = sorted(p[0] for p in points if "building" in p[2])
-    assert building_pts[0] == pytest.approx(100.24)  # mean incl. repeated corner
+    assert building_pts[0] == pytest.approx(100.25)
     assert building_pts[1] == pytest.approx(105.0)
+    # Partial way point is its sole surviving ref (node 9).
+    partial = next(p for p in points if p[2] == {"highway"}
+                   and p[0] == pytest.approx(100.4))
+    assert partial[1] == pytest.approx(15.4)
+
+
+def test_parse_two_byte_file_raises_value_error(tmp_path):
+    tiny = tmp_path / "tiny2.osm.pbf"
+    tiny.write_bytes(b"\x00\x00")
+    with pytest.raises(ValueError):
+        parse_pbf_features(tiny)
+
+
+def test_parse_unsupported_blob_compression_raises_value_error(tmp_path):
+    blob = _var_field(2, 4) + _bytes_field(4, b"lzma")  # field 4: neither raw nor zlib
+    header = _bytes_field(1, b"OSMData") + _var_field(3, len(blob))
+    path = tmp_path / "lzma.osm.pbf"
+    path.write_bytes(struct.pack(">I", len(header)) + header + blob)
+    with pytest.raises(ValueError, match="unsupported blob compression"):
+        parse_pbf_features(path)
 
 
 def test_parse_missing_and_corrupt(tmp_path):
@@ -248,9 +271,10 @@ def test_runner_writes_density_zero_not_null_and_is_idempotent(tmp_path):
     db = make_db(tmp_path)
     pbf = write_tiny_pbf(tmp_path / "tiny.osm.pbf")
     summary = exposure_country("laos", db_path=db, pbf_path=pbf)
-    # 6 of 7 features land in A (incl. boundary hamlet); outside node in none.
-    assert summary["zones"] == 2 and summary["features"] == 7
-    assert summary["assigned"] == 6 and summary["outside"] == 1
+    # 7 of 8 features land in A (incl. boundary hamlet + partial way); outside node in none.
+    assert summary["zones"] == 2 and summary["features"] == 8
+    assert summary["assigned"] == 7 and summary["outside"] == 1
+    assert summary["partial_ways"] == 1 and summary["invalid_ways"] == 1
     assert summary["zones_with_exposure"] == 1 and summary["zones_zero"] == 1
     zones = read_zones(db)
     assert zones["A"]["exposure"] > 0

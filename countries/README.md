@@ -12,7 +12,8 @@ design bug — fix the design, not the country.
 | `id` | Short id, must match the filename (`laos.json` -> `laos`) |
 | `name` | Display name |
 | `languages` | Query/report languages, e.g. `["en", "lo"]` |
-| `demo_area` | Demo province, matching GADM `admin_name` where set (`Xiangkhoang`, `Tbong Khmum`). `null` if unset. |
+| `demo_area` | Demo province display name (`Xiangkhoang`, `Tbong Khmum`); may differ from GADM/`zones.admin_name` (e.g. GADM stores `TbongKhmum`), so never join on it. `null` if unset. |
+| `demo_zone_id` | GADM `GID_1` of the demo province (`LAO.18_1`, `KHM.25_1`); use this for any DB join (`zones.id`). `null` if unset. |
 | `strike_source` | `{type, dataset, country_filter}` — THOR for Tier 1, UCDP/ACLED later |
 | `imagery` | Image sets used for tiling/segmentation, in preference order |
 | `boundaries` | Boundary source (GADM) and admin level used for zones |

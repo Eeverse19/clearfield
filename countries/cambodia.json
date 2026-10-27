@@ -3,6 +3,7 @@
   "name": "Cambodia",
   "languages": ["en", "km"],
   "demo_area": "Tbong Khmum",
+  "demo_zone_id": "KHM.25_1",
   "strike_source": {
     "type": "thor",
     "dataset": "data/thor/thor_data_vietnam.csv",

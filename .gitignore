@@ -25,3 +25,8 @@ pytest-of-*/
 *.key
 *.csv
 *.zip
+# Small committed test fixtures are intentional; datasets stay in data/.
+!tests/*.csv
+!tests/**/*.csv
+!tests/*.zip
+!tests/**/*.zip

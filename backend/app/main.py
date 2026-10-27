@@ -13,13 +13,23 @@ import sqlite3
 from datetime import datetime, timezone
 
 from fastapi import Body, FastAPI, HTTPException
-from fastapi.responses import JSONResponse
+from fastapi.responses import FileResponse, JSONResponse
 
 from backend.app import config
 from backend.app.db import get_conn
 from backend.app.profiles import list_countries, load_country
 
 app = FastAPI(title="ClearField", version="0.0.0")
+
+FRONTEND_INDEX = config.REPO_ROOT / "frontend" / "index.html"
+
+
+@app.get("/")
+def index():
+    """Serve the single-file map GUI (frontend/index.html) at the root."""
+    if not FRONTEND_INDEX.exists():
+        raise HTTPException(status_code=404, detail="frontend/index.html not found")
+    return FileResponse(FRONTEND_INDEX, media_type="text/html")
 
 SURVEYED_STATUSES = ("unsurveyed", "surveyed", "cleared")
 RISK_FLAGS = ("unknown", "suspect_live", "inert", "escalated")

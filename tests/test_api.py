@@ -13,7 +13,7 @@ import pytest
 from fastapi import HTTPException
 
 from backend.app import config
-from backend.app.main import countries, country, create_find, explain, health, list_zones
+from backend.app.main import countries, country, create_find, explain, health, index, list_zones
 
 SCHEMA = Path(__file__).resolve().parents[1] / "db" / "schema.local.sql"
 GEOM = '{"type": "MultiPolygon", "coordinates": []}'
@@ -120,6 +120,16 @@ def test_find_validation(tmp_path):
 
 def test_explain_still_honest_501():
     assert status_of(explain) == 501
+
+
+def test_index_serves_frontend_gui():
+    resp = index()
+    assert resp.status_code == 200
+    assert resp.media_type == "text/html"
+    body = Path(resp.path).read_text(encoding="utf-8")
+    assert "ClearField" in body and 'id="map"' in body and "/zones?country=" in body
+    # UX-skill pass guards: live region, keyboard-reachable map, demo zone join key.
+    assert 'aria-live="polite"' in body and 'tabindex="0"' in body and "demo_zone_id" in body
 
 
 @pytest.mark.skipif(not config.LOCAL_DB_PATH.exists(), reason="real seeded DB not present")

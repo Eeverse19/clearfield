@@ -1,10 +1,704 @@
 <!doctype html>
+<html lang="en">
+<head>
 <meta charset="utf-8">
-<title>ClearField (scaffold)</title>
-<h1>ClearField</h1>
-<p>Scaffold placeholder. Zone data is seeded (106 zones) and <code>/zones</code>
-works, but no zone is ranked yet: scoring needs THOR strike density and OSM
-exposure, which have not landed. The map lands with the first real ranking.</p>
-<p>API: <code>uv run uvicorn backend.app.main:app --reload</code>, then
-<a href="http://localhost:8000/docs">localhost:8000/docs</a> and
-<a href="http://localhost:8000/health">/health</a>.</p>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ClearField — Clearance Priority Map</title>
+<style>
+  :root{
+    --bg:#0d1218; --panel:#141b24; --panel2:#182130; --line:#26303d;
+    --text:#dce5ef; --dim:#9db0c4; --faint:#8398b0; /* WCAG 1.4.3: >=4.5:1 on panel */
+    --amber:#e8a33d; --teal:#2fb3a3; --red:#e4572e; --ok:#5cae6e;
+    --mono:"Cascadia Mono",Consolas,ui-monospace,monospace;
+    --sans:"Segoe UI",system-ui,-apple-system,"Helvetica Neue",sans-serif;
+    --serif:Georgia,"Times New Roman",serif;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{margin:0;background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14px;display:flex;flex-direction:column;overflow:hidden}
+  header{display:flex;align-items:center;gap:16px;padding:12px 16px;border-bottom:1px solid var(--line);background:var(--panel);flex-wrap:wrap}
+  /* Craft R11/R3 + WCAG 2.4.7: every interactive element gets named-property transitions and a visible focus ring */
+  button,select,input,textarea,ol.ranks li{transition:background-color 150ms ease,border-color 150ms ease,color 150ms ease}
+  button:hover{border-color:#46566b}
+  button:active{transform:translateY(1px)}
+  :focus-visible{outline:2px solid var(--amber);outline-offset:2px;border-radius:2px}
+  input:focus,select:focus,textarea:focus{border-color:var(--teal)}
+  .sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+  .num,.chip,.chip b,ol.ranks .n,ol.ranks .v,#coords,.comp .row b{font-variant-numeric:tabular-nums}
+  kbd{font-family:var(--mono);font-size:10px;border:1px solid var(--line);border-bottom-width:2px;border-radius:3px;padding:0 4px;background:var(--panel2);color:var(--dim)}
+  details.help{border:1px solid var(--line);border-radius:3px;padding:8px 10px;margin-top:16px;background:var(--panel2)}
+  details.help summary{cursor:pointer;font-size:12.5px;color:var(--text)}
+  details.help .body{font-size:12px;color:var(--dim);line-height:1.55;margin-top:8px}
+  details.help .body p{margin:0 0 6px}
+  .steps{display:flex;gap:2px}
+  .steps i{flex:1;height:10px;border-radius:1px}
+  .chk{display:flex;gap:8px;align-items:flex-start;font-size:12px;color:#e9c883;border:1px solid #4d3a16;background:#1d1910;border-radius:3px;padding:8px;margin-top:8px;line-height:1.45}
+  .chk input{width:auto;margin-top:2px;flex:none}
+  .brand{font-family:var(--serif);font-size:22px;letter-spacing:.3px;white-space:nowrap}
+  .brand b{color:var(--amber);font-weight:600}
+  .tagline{color:var(--dim);font-size:12px;max-width:330px;line-height:1.35}
+  .chips{display:flex;gap:8px;margin-left:auto;flex-wrap:wrap;align-items:center}
+  .chip{font-family:var(--mono);font-size:11px;border:1px solid var(--line);border-radius:3px;padding:4px 8px;color:var(--dim);background:var(--panel2);white-space:nowrap}
+  .chip b{color:var(--text);font-weight:600}
+  .chip .dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--ok);margin-right:5px;vertical-align:1px}
+  .chip.bad .dot{background:var(--red)}
+  .chip.warn b{color:var(--amber)}
+  main{flex:1;display:grid;grid-template-columns:300px 1fr 330px;min-height:0}
+  aside{background:var(--panel);overflow-y:auto;padding:16px 16px 24px;min-height:0}
+  aside.left{border-right:1px solid var(--line)}
+  aside.right{border-left:1px solid var(--line)}
+  h2{font-size:12px;font-weight:600;color:var(--dim);margin:16px 0 8px;letter-spacing:.4px}
+  h2:first-child{margin-top:0}
+  .tabs{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px}
+  button{font-family:var(--sans);cursor:pointer}
+  .tab{background:var(--panel2);border:1px solid var(--line);color:var(--text);border-radius:3px;padding:8px 4px;font-size:13px;min-height:44px}
+  .tab small{display:block;color:var(--faint);font-family:var(--mono);font-size:10px;margin-top:1px}
+  .tab.on{border-color:var(--amber);color:var(--amber)}
+  .tab.on small{color:var(--amber)}
+  .layers{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+  .layer{background:var(--panel2);border:1px solid var(--line);color:var(--dim);border-radius:3px;padding:8px;font-size:12px;text-align:left;min-height:40px}
+  .layer.on{border-color:var(--teal);color:var(--text)}
+  .layer .sw{display:inline-block;width:9px;height:9px;margin-right:6px;border-radius:2px;vertical-align:-1px}
+  select,input[type=text],textarea{width:100%;background:var(--panel2);border:1px solid var(--line);color:var(--text);border-radius:3px;padding:7px 8px;font-family:var(--sans);font-size:13px}
+  textarea{resize:vertical;min-height:52px}
+  label.f{display:block;font-size:12px;color:var(--dim);margin:10px 0 4px}
+  .legend{margin-top:8px}
+  .legend .bar{height:10px;border-radius:2px;border:1px solid var(--line)}
+  .legend .ends{display:flex;justify-content:space-between;font-family:var(--mono);font-size:10px;color:var(--faint);margin-top:3px}
+  .legend .nodata{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--dim);margin-top:6px}
+  .legend .nodata i{width:11px;height:11px;background:#1a212c;border:1px solid #2c3644;display:inline-block;border-radius:2px}
+  .ranknote{font-size:11px;color:var(--faint);line-height:1.45;margin:-2px 0 8px}
+  .ranknote b{color:var(--amber);font-weight:600}
+  ol.ranks{list-style:none;margin:0;padding:0}
+  ol.ranks li{display:grid;grid-template-columns:26px 1fr auto;gap:8px;align-items:baseline;padding:6px 6px;border-bottom:1px solid #1c2531;cursor:pointer;border-radius:2px}
+  ol.ranks li:hover{background:var(--panel2)}
+  ol.ranks li.sel{background:#1e2a3a}
+  ol.ranks .n{font-family:var(--mono);font-size:11px;color:var(--faint)}
+  ol.ranks .nm{font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  ol.ranks .nm small{color:var(--faint);font-family:var(--mono);font-size:10px;margin-left:6px}
+  ol.ranks .v{font-family:var(--mono);font-size:12px;color:var(--amber)}
+  ol.ranks .demo{color:var(--teal);font-size:10px;margin-left:5px}
+  /* Craft R6: map overlays live in their own stacking context; local z-scale only (tools 5, tooltip 6) */
+  #mapwrap{position:relative;background:#0a0f14;min-width:0;isolation:isolate}
+  canvas{position:absolute;inset:0;width:100%;height:100%;display:block;cursor:grab}
+  canvas:active{cursor:grabbing}
+  canvas.findmode{cursor:crosshair}
+  .maptools{position:absolute;top:12px;left:12px;display:flex;gap:6px;z-index:5}
+  .maptools button,.mapbtn{background:rgba(20,27,36,.92);border:1px solid var(--line);color:var(--text);border-radius:3px;padding:8px 12px;font-size:12px;min-height:40px}
+  .maptools button.on{border-color:var(--red);color:#ffb59d}
+  #coords{position:absolute;right:12px;bottom:10px;font-family:var(--mono);font-size:11px;color:var(--dim);background:rgba(13,18,24,.85);padding:3px 8px;border:1px solid var(--line);border-radius:3px;z-index:5}
+  #tooltip{position:absolute;pointer-events:none;background:rgba(10,14,19,.94);border:1px solid var(--line);border-radius:3px;padding:6px 9px;font-size:12px;z-index:6;display:none;max-width:240px}
+  #tooltip .tv{font-family:var(--mono);color:var(--amber)}
+  .banner{position:absolute;left:50%;transform:translateX(-50%);bottom:12px;z-index:5;background:rgba(20,27,36,.94);border:1px solid #4d3a16;border-radius:3px;color:#e9c883;padding:7px 12px;font-size:12px;display:none;max-width:86%}
+  .zname{font-family:var(--serif);font-size:21px;line-height:1.15}
+  .zid{font-family:var(--mono);font-size:11px;color:var(--faint);margin-top:2px}
+  .badge{display:inline-block;font-size:10px;font-family:var(--mono);border:1px solid var(--teal);color:var(--teal);border-radius:3px;padding:2px 6px;margin-left:8px;vertical-align:3px}
+  .comp{margin-top:12px}
+  .comp .row{display:flex;justify-content:space-between;font-size:12px;color:var(--dim)}
+  .comp .row b{font-family:var(--mono);color:var(--text);font-weight:600;font-size:12px}
+  .comp .track{height:7px;background:#1c2531;border-radius:2px;margin:4px 0 2px;overflow:hidden}
+  .comp .fill{height:100%}
+  .comp .pc{font-size:10px;color:var(--faint);font-family:var(--mono)}
+  .pend{color:var(--amber)!important}
+  .statusline{border:1px solid #4d3a16;background:#1d1910;border-radius:3px;padding:8px 10px;font-size:12px;color:#e9c883;line-height:1.5;margin-top:14px}
+  .brief{background:var(--panel2);border:1px solid var(--line);border-radius:3px;padding:10px;font-size:12.5px;line-height:1.55;color:var(--text)}
+  .brief p{margin:0 0 8px}.brief p:last-child{margin:0}
+  .src{font-size:10.5px;color:var(--faint);margin-top:6px;line-height:1.4}
+  .btn{display:inline-block;background:var(--panel2);border:1px solid var(--line);color:var(--text);border-radius:3px;padding:8px 12px;font-size:13px;width:100%;text-align:center}
+  .btn.primary{border-color:#7a5a1e;background:#2a2010;color:#f0c169}
+  .btn.danger{border-color:#6e2b18;background:#26120c;color:#ffb59d}
+  .btn:disabled{opacity:.5;cursor:default}
+  .btnrow{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:8px}
+  .safety{font-size:11.5px;color:#e8a0a0;border:1px solid #55251c;background:#1f100c;border-radius:3px;padding:8px 10px;line-height:1.5}
+  .finditem{border-bottom:1px solid #1c2531;padding:7px 2px;font-size:12px}
+  .finditem .st-synced{color:var(--ok);font-family:var(--mono);font-size:10px}
+  .finditem .st-queued{color:var(--amber);font-family:var(--mono);font-size:10px}
+  .empty{color:var(--faint);font-size:12px;line-height:1.5}
+  .msg{font-size:12px;margin-top:8px;line-height:1.5;min-height:16px}
+  .msg.err{color:#ff9d86}.msg.good{color:#8fd79b}
+  #loading{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:var(--dim);font-family:var(--mono);font-size:13px;z-index:4;background:#0a0f14}
+  @media (max-width:1050px){ main{grid-template-columns:260px 1fr} aside.right{display:none} aside.right.open{display:block;position:absolute;right:0;top:0;bottom:0;width:320px;z-index:20} }
+  @media (prefers-reduced-motion:reduce){ *{transition:none!important} }
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <div class="brand">Clear<b>Field</b></div>
+    <div class="tagline">Which bombed land gets surveyed first — ranked from strike records, crater evidence, and who lives there.</div>
+  </div>
+  <div class="chips" id="chips">
+    <span class="chip" id="chip-api"><span class="dot"></span>API …</span>
+    <span class="chip" id="chip-zones">zones <b>—</b></span>
+    <span class="chip" id="chip-exp">exposure <b>—</b></span>
+    <span class="chip" id="chip-crater">craters <b>—</b></span>
+    <span class="chip warn" id="chip-thor">strike density <b>THOR pending</b></span>
+    <span class="chip" id="chip-finds">finds this session <b>0</b></span>
+  </div>
+</header>
+<main>
+  <aside class="left">
+    <h2>COUNTRY</h2>
+    <div class="tabs" id="countrytabs"></div>
+    <h2>MAP LAYER</h2>
+    <div class="layers" id="layers"></div>
+    <div class="legend">
+      <div class="steps" id="legendbar" aria-hidden="true"></div>
+      <div class="ends"><span id="legendlo">low</span><span id="legendmd"></span><span id="legendhi">high</span></div>
+      <div class="nodata"><i></i> no data for this zone (not the same as zero)</div>
+    </div>
+    <h2>FILTER</h2>
+    <label class="f" for="surveyed">Surveyed status</label>
+    <select id="surveyed">
+      <option value="all">All zones</option>
+      <option value="unsurveyed">Unsurveyed</option>
+      <option value="surveyed">Surveyed</option>
+      <option value="cleared">Cleared</option>
+    </select>
+    <label class="f" for="q">Find a province</label>
+    <input type="text" id="q" placeholder="e.g. Savannakhet or KHM.25_1" autocomplete="off">
+    <h2 id="ranktitle">EVIDENCE RANKING</h2>
+    <p class="ranknote" id="ranknote"></p>
+    <ol class="ranks" id="ranks"></ol>
+    <details class="help">
+      <summary>How to read this map</summary>
+      <div class="body">
+        <p><b>Color = one score ingredient at a time.</b> Switch layers above. Darker grey means <b>no data</b> — that is not zero. A real zero gets the lightest color step.</p>
+        <p><b>Official priority needs all three ingredients</b> multiplied together: THOR strike density × crater evidence × exposure. Strike density is not seeded yet, so today's list is an evidence preview, never a clearance order.</p>
+        <p><b>◆</b> marks the demo province. Colored dots are field finds recorded in this browser (green = saved to the database, amber = queued offline).</p>
+        <p>Shortcuts: <kbd>/</kbd> search · <kbd>←</kbd><kbd>→</kbd><kbd>↑</kbd><kbd>↓</kbd> pan (map focused) · <kbd>+</kbd>/<kbd>−</kbd> zoom · <kbd>Esc</kbd> cancel find mode. Every zone is also reachable from the ranking list — the map needs no mouse.</p>
+      </div>
+    </details>
+  </aside>
+  <div id="mapwrap">
+    <canvas id="map" tabindex="0" role="img" aria-label="Province map. Use the ranking list to select a zone by keyboard, or focus this map and use arrow keys to pan and plus or minus to zoom."></canvas>
+    <div class="sr-only" id="sr-status" aria-live="polite"></div>
+    <div id="loading">loading zones…</div>
+    <div class="maptools">
+      <button id="btn-zin" title="Zoom in" aria-label="Zoom in">＋</button>
+      <button id="btn-zout" title="Zoom out" aria-label="Zoom out">－</button>
+      <button id="btn-fit">Fit country</button>
+      <button id="btn-demo">Go to demo province</button>
+      <button id="btn-findmode">Record a find</button>
+    </div>
+    <div id="tooltip"></div>
+    <div class="banner" id="banner"></div>
+    <div id="coords">— , —</div>
+  </div>
+  <aside class="right" id="inspector"></aside>
+</main>
+<script>
+"use strict";
+const API = "";  // same origin: the backend serves this page at /
+const LAYERS = {
+  exposure:       {label:"Exposure (OSM)",   unit:"features/km²", stops:["#0e2a27","#17655a","#2fb3a3","#a9e8c9"]},
+  crater_evidence:{label:"Crater evidence", unit:"craters/km²",  stops:["#2e1a07","#8a5a17","#e8a33d","#ffe3ae"]},
+  strike_density: {label:"Strike density",  unit:"missions/km²", stops:["#2e0f08","#8f3018","#e4572e","#ffbfa8"]},
+  priority_score: {label:"Priority score",  unit:"score",        stops:["#2e0f08","#8f3018","#e4572e","#ffbfa8"]},
+};
+const S = {
+  country:"laos", profiles:{}, profile:null, zones:[], layer:"exposure",
+  surveyed:"all", query:"", selectedId:null, hoverId:null,
+  view:{scale:1, tx:0, ty:0}, fitDone:false, findMode:false,
+  finds: JSON.parse(localStorage.getItem("clearfield-finds-v1")||"[]"),
+  findDraft:null,
+};
+const $ = id => document.getElementById(id);
+const canvas = $("map"), ctx = canvas.getContext("2d");
+const fmt = (v,d=3) => v==null ? "—" : (Math.abs(v)>=100 ? String(parseFloat(v.toFixed(1))) : String(parseFloat(v.toPrecision(d))));
+const esc = s => String(s??"").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+function hexRgb(h){ return [parseInt(h.slice(1,3),16),parseInt(h.slice(3,5),16),parseInt(h.slice(5,7),16)]; }
+function ramp(stops,t){
+  t = Math.max(0,Math.min(1,t));
+  const x = t*(stops.length-1), i = Math.min(stops.length-2, Math.floor(x)), f = x-i;
+  const a = hexRgb(stops[i]), b = hexRgb(stops[i+1]);
+  return `rgb(${a.map((v,k)=>Math.round(v+(b[k]-v)*f)).join(",")})`;
+}
+function layerStats(){
+  const vals = S.zones.map(z=>z[S.layer]).filter(v=>v!=null && isFinite(v));
+  if(!vals.length) return null;
+  return {min:Math.min(...vals), max:Math.max(...vals), n:vals.length};
+}
+function tOf(v, st){
+  if(v==null || !st) return null;
+  const lo = Math.log1p(st.min), hi = Math.log1p(st.max);
+  return hi>lo ? (Math.log1p(v)-lo)/(hi-lo) : 0.5;
+}
+function percentile(z, field){
+  const vals = S.zones.map(x=>x[field]).filter(v=>v!=null);
+  if(z[field]==null || !vals.length) return null;
+  return vals.filter(v=>v<=z[field]).length/vals.length;
+}
+// --- geometry: simple equirectangular projection, canvas coords in degrees
+let cosRef = Math.cos(16*Math.PI/180);
+const proj = (lon,lat) => [lon*cosRef, -lat];
+function polysOf(geom){
+  if(!geom) return [];
+  if(geom.type==="Polygon") return [geom.coordinates];
+  if(geom.type==="MultiPolygon") return geom.coordinates;
+  return [];
+}
+function prepZones(){
+  const lats=[];
+  for(const z of S.zones){
+    z._polys = polysOf(z.geom);
+    let mnx=1e9,mny=1e9,mxx=-1e9,mxy=-1e9;
+    for(const poly of z._polys) for(const ring of poly) for(const [lon,lat] of ring){
+      lats.push(lat);
+      if(lon<mnx)mnx=lon; if(lon>mxx)mxx=lon; if(lat<mny)mny=lat; if(lat>mxy)mxy=lat;
+    }
+    z._bbox=[mnx,mny,mxx,mxy]; z._c=[(mnx+mxx)/2,(mny+mxy)/2];
+  }
+  if(lats.length) cosRef = Math.cos((lats.reduce((a,b)=>a+b,0)/lats.length)*Math.PI/180);
+}
+function ringHit(ring, lon, lat){
+  let inside=false;
+  for(let i=0,j=ring.length-1;i<ring.length;j=i++){
+    const [xi,yi]=ring[i], [xj,yj]=ring[j];
+    if(((yi>lat)!==(yj>lat)) && (lon < (xj-xi)*(lat-yi)/(yj-yi)+xi)) inside=!inside;
+  }
+  return inside;
+}
+function zoneAt(lon,lat){
+  for(const z of S.zones){
+    const b=z._bbox; if(lon<b[0]||lon>b[2]||lat<b[1]||lat>b[3]) continue;
+    for(const poly of z._polys){
+      if(ringHit(poly[0],lon,lat) && !poly.slice(1).some(r=>ringHit(r,lon,lat))) return z;
+    }
+  }
+  return null;
+}
+async function apiGet(path){
+  const r = await fetch(API+path);
+  if(!r.ok) throw new Error(`${r.status} ${await r.text()}`);
+  return r.json();
+}
+// --- map drawing -------------------------------------------------------------
+function sizeCanvas(){
+  const r = canvas.parentElement.getBoundingClientRect(), dpr = window.devicePixelRatio||1;
+  canvas.width = Math.max(50, r.width*dpr); canvas.height = Math.max(50, r.height*dpr);
+  canvas._dpr = dpr; canvas._w = r.width; canvas._h = r.height;
+}
+function fitCountry(animateTo=null){
+  if(!S.zones.length) return;
+  let mnx=1e9,mny=1e9,mxx=-1e9,mxy=-1e9;
+  const src = animateTo ? [animateTo] : S.zones;
+  for(const z of src){ const b=z._bbox; const [x0,y1]=proj(b[0],b[3]),[x1,y0]=proj(b[2],b[1]);
+    mnx=Math.min(mnx,x0); mxx=Math.max(mxx,x1); mny=Math.min(mny,y1); mxy=Math.max(mxy,y0); }
+  const pad = animateTo ? 60 : 26;
+  const sc = Math.min((canvas._w-pad*2)/Math.max(1e-9,mxx-mnx), (canvas._h-pad*2)/Math.max(1e-9,mxy-mny));
+  S.view.scale = sc;
+  S.view.tx = (canvas._w - sc*(mnx+mxx))/2;
+  S.view.ty = (canvas._h - sc*(mny+mxy))/2;
+  S.fitDone = true; draw();
+}
+const toWorld = (px,py) => [(px - S.view.tx)/S.view.scale, (py - S.view.ty)/S.view.scale];
+const toLonLat = (px,py) => { const [x,y]=toWorld(px,py); return [x/cosRef, -y]; };
+function zonePath(z){
+  const p = new Path2D();
+  for(const poly of z._polys) for(const ring of poly){
+    ring.forEach(([lon,lat],i)=>{ const [x,y]=proj(lon,lat); i? p.lineTo(x,y) : p.moveTo(x,y); });
+    p.closePath();
+  }
+  return p;
+}
+function draw(){
+  if(!canvas.width) return;
+  const dpr = canvas._dpr||1, st = layerStats(), L = LAYERS[S.layer];
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  ctx.fillStyle = "#0a0f14"; ctx.fillRect(0,0,canvas._w,canvas._h);
+  ctx.setTransform(dpr*S.view.scale,0,0,dpr*S.view.scale,dpr*S.view.tx,dpr*S.view.ty);
+  // graticule every 2 degrees
+  ctx.strokeStyle = "#16202c"; ctx.lineWidth = 1/S.view.scale;
+  ctx.beginPath();
+  for(let lon=92; lon<=112; lon+=2){ const [x]=proj(lon,0); ctx.moveTo(x,-26); ctx.lineTo(x,-4); }
+  for(let lat=6; lat<=24; lat+=2){ const [,y]=proj(0,lat); ctx.moveTo(92*cosRef,y); ctx.lineTo(112*cosRef,y); }
+  ctx.stroke();
+  const demoId = S.profile && S.profile.demo_zone_id;
+  for(const z of S.zones){
+    const filtered = (S.surveyed!=="all" && z.surveyed_status!==S.surveyed);
+    const t = tOf(z[S.layer], st), p = zonePath(z);
+    ctx.fillStyle = t==null ? "#1a212c" : ramp(L.stops, t);
+    ctx.globalAlpha = filtered ? 0.18 : 1;
+    ctx.fill(p);
+    ctx.globalAlpha = filtered ? 0.35 : 1;
+    ctx.strokeStyle = t==null ? "#2c3644" : "rgba(8,12,17,.65)";
+    ctx.lineWidth = 0.7/S.view.scale; ctx.stroke(p);
+    ctx.globalAlpha = 1;
+    z._path = p;
+  }
+  // demo province marker (diamond at bbox centre)
+  if(demoId){
+    const d = S.zones.find(z=>z.id===demoId);
+    if(d){ const [x,y]=proj(d._c[0],d._c[1]), s=7/S.view.scale;
+      ctx.beginPath(); ctx.moveTo(x,y-s); ctx.lineTo(x+s,y); ctx.lineTo(x,y+s); ctx.lineTo(x-s,y); ctx.closePath();
+      ctx.fillStyle="#0d1218"; ctx.fill(); ctx.strokeStyle="#2fb3a3"; ctx.lineWidth=1.6/S.view.scale; ctx.stroke(); }
+  }
+  // hover + selection outlines
+  const outline = (id,color,w)=>{ const z=S.zones.find(z2=>z2.id===id); if(z&&z._path){ ctx.strokeStyle=color; ctx.lineWidth=w/S.view.scale; ctx.stroke(z._path);} };
+  if(S.hoverId && S.hoverId!==S.selectedId) outline(S.hoverId,"rgba(220,230,240,.75)",1.2);
+  if(S.selectedId) outline(S.selectedId,"#f0c169",2.2);
+  // find pins
+  for(const f of S.finds){
+    if(f.country!==S.country || !f.location) continue;
+    const [x,y]=proj(f.location.coordinates[0], f.location.coordinates[1]);
+    ctx.beginPath(); ctx.arc(x,y,4.5/S.view.scale,0,Math.PI*2);
+    ctx.fillStyle = f._status==="synced" ? "#5cae6e" : "#e8a33d"; ctx.fill();
+    ctx.strokeStyle="#0d1218"; ctx.lineWidth=1.4/S.view.scale; ctx.stroke();
+  }
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+}
+// --- map interaction ---------------------------------------------------------
+let drag=null;
+canvas.addEventListener("pointerdown", e=>{ drag={x:e.offsetX,y:e.offsetY,moved:false}; canvas.setPointerCapture(e.pointerId); });
+canvas.addEventListener("pointermove", e=>{
+  const [lon,lat]=toLonLat(e.offsetX,e.offsetY);
+  $("coords").textContent = `${lat.toFixed(4)}°N, ${lon.toFixed(4)}°E`;
+  if(drag){
+    const dx=e.offsetX-drag.x, dy=e.offsetY-drag.y;
+    if(Math.abs(dx)+Math.abs(dy)>3) drag.moved=true;
+    if(drag.moved){ S.view.tx+=dx; S.view.ty+=dy; drag.x=e.offsetX; drag.y=e.offsetY; draw(); }
+    return;
+  }
+  const z = zoneAt(lon,lat), tip=$("tooltip");
+  S.hoverId = z? z.id : null;
+  if(z){
+    const L=LAYERS[S.layer];
+    tip.innerHTML = `<b>${esc(z.admin_name||z.id)}</b> <span style="color:var(--faint)">${esc(z.id)}</span><br>${L.label}: <span class="tv">${z[S.layer]==null?"no data":fmt(z[S.layer])+" "+L.unit}</span>`;
+    tip.style.display="block";
+    tip.style.left = Math.min(canvas._w-250, e.offsetX+14)+"px"; tip.style.top = (e.offsetY+14)+"px";
+  } else tip.style.display="none";
+  draw();
+});
+canvas.addEventListener("pointerup", e=>{
+  const wasDrag = drag && drag.moved; drag=null;
+  if(wasDrag) return;
+  const [lon,lat]=toLonLat(e.offsetX,e.offsetY), z=zoneAt(lon,lat);
+  if(S.findMode){ startFindDraft(lon,lat,z); return; }
+  if(z) selectZone(z.id, false);
+});
+canvas.addEventListener("pointerleave", ()=>{ S.hoverId=null; $("tooltip").style.display="none"; draw(); });
+canvas.addEventListener("wheel", e=>{
+  e.preventDefault();
+  const f = e.deltaY<0 ? 1.18 : 1/1.18, [wx,wy]=toWorld(e.offsetX,e.offsetY);
+  S.view.scale = Math.max(4, Math.min(4000, S.view.scale*f));
+  S.view.tx = e.offsetX - wx*S.view.scale; S.view.ty = e.offsetY - wy*S.view.scale;
+  draw();
+},{passive:false});
+function zoomBy(f){ const cx=canvas._w/2, cy=canvas._h/2, [wx,wy]=toWorld(cx,cy);
+  S.view.scale=Math.max(4,Math.min(4000,S.view.scale*f)); S.view.tx=cx-wx*S.view.scale; S.view.ty=cy-wy*S.view.scale; draw(); }
+$("btn-zin").onclick = ()=>zoomBy(1.3);
+$("btn-zout").onclick = ()=>zoomBy(1/1.3);
+$("btn-fit").onclick = ()=>fitCountry();
+// --- side panels -------------------------------------------------------------
+function renderTabs(){
+  $("countrytabs").innerHTML = Object.values(S.profiles).map(p=>{
+    const zoneCount = p.id===S.country ? S.zones.length : null;
+    return `<button class="tab ${p.id===S.country?"on":""}" data-c="${p.id}">${esc(p.name)}<small>${zoneCount!=null? zoneCount+" zones" : esc(p.id)}</small></button>`;
+  }).join("");
+  document.querySelectorAll("#countrytabs .tab").forEach(b=> b.onclick=()=>loadCountry(b.dataset.c));
+}
+function renderLayers(){
+  $("layers").innerHTML = Object.entries(LAYERS).map(([k,L])=>
+    `<button class="layer ${k===S.layer?"on":""}" data-l="${k}"><span class="sw" style="background:${L.stops[2]}"></span>${L.label}</button>`).join("");
+  document.querySelectorAll("#layers .layer").forEach(b=> b.onclick=()=>{ S.layer=b.dataset.l; renderLayers(); renderRanks(); draw(); });
+  const L=LAYERS[S.layer], st=layerStats();
+  // Craft R1: stepped swatches, no decorative gradient (map fills are flat per zone)
+  $("legendbar").innerHTML = [0.08,0.28,0.48,0.68,0.88].map(t=>`<i style="background:${ramp(L.stops,t)}"></i>`).join("");
+  $("legendlo").textContent = st? fmt(st.min) : "—";
+  $("legendhi").textContent = st? `${fmt(st.max)} ${L.unit}` : "no data yet";
+  $("legendmd").textContent = st? `${st.n}/${S.zones.length} zones have data (log scale)` : "";
+}
+function filteredZones(){
+  const q=S.query.trim().toLowerCase();
+  return S.zones.filter(z=>
+    (S.surveyed==="all" || z.surveyed_status===S.surveyed) &&
+    (!q || (z.admin_name||"").toLowerCase().includes(q) || z.id.toLowerCase().includes(q)));
+}
+function renderRanks(){
+  const L=LAYERS[S.layer], st=layerStats(), demoId=S.profile&&S.profile.demo_zone_id;
+  $("ranktitle").textContent = S.layer==="priority_score" ? "OFFICIAL PRIORITY RANK" : "EVIDENCE RANKING — "+L.label.toUpperCase();
+  $("ranknote").innerHTML = st==null
+    ? `<b>No ${esc(L.label.toLowerCase())} data yet.</b> Zones cannot be ranked on this layer until it is seeded (strike density needs the THOR ingest).`
+    : (S.layer==="priority_score"
+        ? "Official deterministic score from <span style='font-family:var(--mono)'>pipelines/scoring.py</span>."
+        : `<b>Preview only.</b> Sorted by ${esc(L.label.toLowerCase())}; the official priority score also needs THOR strike density, which has not been seeded yet — so no zone is officially rankable today.`);
+  const rows = filteredZones().slice().sort((a,b)=>{
+    const av=a[S.layer], bv=b[S.layer];
+    if(av==null && bv==null) return a.id<b.id?-1:1;
+    if(av==null) return 1; if(bv==null) return -1;
+    return bv-av || (a.id<b.id?-1:1);
+  });
+  $("ranks").innerHTML = rows.map((z,i)=>
+    `<li data-id="${z.id}" tabindex="0" role="button" aria-label="Select ${esc(z.admin_name||z.id)}" class="${z.id===S.selectedId?"sel":""}"><span class="n">${z[S.layer]==null?"–":i+1}</span>`+
+    `<span class="nm">${esc(z.admin_name||z.id)}${z.id===demoId?'<span class="demo">◆ DEMO</span>':""}<small>${esc(z.id)}</small></span>`+
+    `<span class="v">${z[S.layer]==null?"—":fmt(z[S.layer])}</span></li>`).join("")
+    || `<li class="empty">No zones match the filter.</li>`;
+  document.querySelectorAll("#ranks li[data-id]").forEach(li=>{
+    li.onclick=()=>selectZone(li.dataset.id, true);
+    li.onkeydown=e=>{ if(e.key==="Enter"||e.key===" "){ e.preventDefault(); selectZone(li.dataset.id, true); } };
+  });
+}
+const SOURCES = {  // AI-trust Footprints/Citations: every number names its source
+  strike_density: () => "Source: USAF THOR archive — not ingested yet",
+  crater_evidence: () => "Source: Barthelme KH-9 crater predictions, seeded by scripts/seed_db.py",
+  exposure: () => "Source: OpenStreetMap extract " + ((S.profile && String(S.profile.osm_extract||"").split("/").pop()) || "per country profile"),
+};
+function compRow(z, field, label, unit, color){
+  const v=z[field], pc=percentile(z,field);
+  const bar = v==null ? 0 : Math.round((tOf(v,{min:Math.min(...S.zones.map(x=>x[field]).filter(x=>x!=null)),max:Math.max(...S.zones.map(x=>x[field]).filter(x=>x!=null))})||0)*100);
+  return `<div class="comp"><div class="row"><span>${label}</span><b class="${v==null?"pend":""}">${v==null?"pending":fmt(v)+" "+unit}</b></div>`+
+    `<div class="track"><div class="fill" style="width:${bar}%;background:${color}"></div></div>`+
+    `<div class="pc">${v==null?"no data seeded for this zone":"higher than "+Math.round(pc*100)+"% of "+esc(S.profile.name)+" zones with data"} · ${esc(SOURCES[field]())}</div></div>`;
+}
+function briefing(z){
+  const name = z.admin_name||z.id, parts=[];
+  const rankOf = f => { const s=S.zones.filter(x=>x[f]!=null).sort((a,b)=>b[f]-a[f]); const i=s.findIndex(x=>x.id===z.id); return i<0?null:`#${i+1} of ${s.length}`; };
+  if(z.exposure!=null) parts.push(`People and livelihoods: exposure is ${fmt(z.exposure)} OSM features/km² (${rankOf("exposure")} in ${S.profile.name}) — buildings, settlements, schools, roads, and farmland from OpenStreetMap.`);
+  else parts.push(`Exposure has not been computed for ${S.profile.name} yet (no OSM extract has been run for this country).`);
+  if(z.crater_evidence!=null) parts.push(`Crater evidence: ${fmt(z.crater_evidence)} craters/km² (${rankOf("crater_evidence")}) from KH-9 satellite-imagery crater predictions — physical evidence of bombing on this ground.`);
+  else parts.push(`Crater evidence is missing: no imagery crater predictions cover this zone, so bombing here is currently evidenced only by records, not by observed craters.`);
+  if(z.strike_density!=null) parts.push(`Strike density: ${fmt(z.strike_density)} recorded missions/km² (${rankOf("strike_density")}) from USAF THOR records.`);
+  else parts.push(`Strike density is still pending: the THOR bombing archive is on disk but has not been ingested into zones yet, and the scoring formula needs all three components.`);
+  const missing = ["strike_density","crater_evidence","exposure"].filter(f=>z[f]==null);
+  parts.push(z.priority_rank!=null
+    ? `Official priority: rank ${z.priority_rank} (score ${fmt(z.priority_score)}), computed ${esc(z.scored_at||"")}. Survey status: ${esc(z.surveyed_status)}.`
+    : `Bottom line: ${name} <b>cannot be officially ranked yet</b> — missing ${missing.map(f=>LAYERS[f].label.toLowerCase()).join(", ")}. Survey status: ${esc(z.surveyed_status)}. Treat the evidence ranking on the left as a preview, not a clearance decision.`);
+  return parts.map(p=>`<p>${p}</p>`).join("");
+}
+function announce(msg){ const el=$("sr-status"); if(el) el.textContent = msg; }  // WCAG 4.1.3 status messages
+function selectZone(id, center){
+  S.selectedId=id;
+  const z=S.zones.find(x=>x.id===id); if(!z) return;
+  announce(`${z.admin_name||z.id} selected. ${z.priority_rank!=null? "Official rank "+z.priority_rank+"." : "Not officially rankable yet."}`);
+  if(center) fitCountry(z);
+  renderRanks(); draw(); renderInspector(z);
+  if(window.innerWidth<=1050) $("inspector").classList.add("open");
+}
+function renderInspector(z){
+  const demo = S.profile && z.id===S.profile.demo_zone_id;
+  const missing = ["strike_density","crater_evidence","exposure"].filter(f=>z[f]==null);
+  $("inspector").innerHTML = `
+    <div class="zname">${esc(z.admin_name||z.id)}${demo?'<span class="badge">◆ DEMO PROVINCE</span>':""}</div>
+    <div class="zid">${esc(z.id)} · ${esc(S.profile.name)} · status: ${esc(z.surveyed_status)}${z.priority_rank!=null?` · rank #${z.priority_rank}`:" · unranked"}</div>
+    ${compRow(z,"strike_density","Strike density (THOR)","missions/km²","#e4572e")}
+    ${compRow(z,"crater_evidence","Crater evidence (imagery)","craters/km²","#e8a33d")}
+    ${compRow(z,"exposure","Exposure (people & livelihoods)","features/km²","#2fb3a3")}
+    ${z.priority_rank==null?`<div class="statusline"><b>Not officially rankable yet.</b> Missing: ${missing.map(f=>LAYERS[f].label).join(", ")||"a scoring run"}. One gap blocks the score — by design, so no number here is ever invented.</div>`:""}
+    <h2>WHY THIS ZONE — BRIEFING</h2>
+    <div class="brief">${briefing(z)}</div>
+    <div class="src"><span class="badge" style="margin:0 6px 0 0">LOCAL TEMPLATE · NOT AI</span>Built in your browser from the stored components above. Every number is a real database value with its source named. The Spark agent (<span style="font-family:var(--mono)">POST /explain</span>) is not connected yet.</div>
+    <div style="margin-top:8px"><button class="btn primary" id="btn-center">Center this zone on the map</button></div>
+    <div style="margin-top:6px"><button class="btn" id="btn-explain" style="font-size:12px;padding:6px 10px">Try the (unwired) Spark agent…</button></div>
+    <div class="msg" id="explainmsg" role="status"></div>
+    <details class="help" id="finddetails" ${S.findDraft?"open":""}>
+      <summary>Record a field find in this zone</summary>
+      <div style="margin-top:10px">
+        <div class="safety">Safety first: never approach or touch a suspect item. Record from a safe distance. Anything marked <b>suspect live</b> must be escalated to a human operator — this app never advises approaching an item.</div>
+        <div id="findbox">${findFormHtml(z)}</div>
+      </div>
+    </details>
+    <h2>FINDS RECORDED HERE</h2>
+    <div id="findlist">${findListHtml()}</div>
+    <div class="src">Your data: saved finds live in the local database (<span style="font-family:var(--mono)">data/clearfield.db</span>) on this machine. Queued copies stay only in this browser until synced. Nothing is sent anywhere else.</div>`;
+  wireInspector(z);
+}
+// --- field finds (POST /finds, offline queue in localStorage) -----------------
+function saveFinds(){ localStorage.setItem("clearfield-finds-v1", JSON.stringify(S.finds)); updateFindChip(); }
+function updateFindChip(){
+  const n=S.finds.length, q=S.finds.filter(f=>f._status!=="synced").length;
+  $("chip-finds").innerHTML = `finds recorded <b>${n}</b>${q?` · <b style="color:var(--amber)">${q} queued</b>`:""}`;
+}
+function findFormHtml(z){
+  const d = S.findDraft && S.findDraft.zone_id===z.id ? S.findDraft : null;
+  const loc = d ? d.location.coordinates : z._c;
+  return `
+  <label class="f">Location — or use “Record a find” above the map, then click the map</label>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+    <input type="text" id="f-lon" value="${loc[0].toFixed(5)}" inputmode="decimal" aria-label="Longitude in decimal degrees">
+    <input type="text" id="f-lat" value="${loc[1].toFixed(5)}" inputmode="decimal" aria-label="Latitude in decimal degrees">
+  </div>
+  <div class="src" id="f-zone">Zone at this point: <b>${esc(z.admin_name||z.id)}</b> (${esc(z.id)})</div>
+  <label class="f">Object</label>
+  <select id="f-type">
+    <option>cluster submunition (bombie)</option><option>bomb</option><option>mortar</option>
+    <option>rocket</option><option>grenade</option><option>artillery shell</option>
+    <option>unknown metal object</option><option>other</option>
+  </select>
+  <label class="f">Condition</label>
+  <select id="f-cond"><option>unknown</option><option>intact</option><option>damaged</option><option>fragmented</option></select>
+  <label class="f">Estimated size</label>
+  <input type="text" id="f-size" placeholder="e.g. 20 cm long">
+  <label class="f">Risk flag</label>
+  <select id="f-risk">
+    <option value="unknown">unknown — treat as hazardous</option>
+    <option value="suspect_live">suspect live — escalate to operator</option>
+    <option value="inert">inert (confirmed by operator)</option>
+    <option value="escalated">already escalated</option>
+  </select>
+  <label class="f">Notes (English, Lao, or Khmer)</label>
+  <textarea id="f-notes" placeholder="What was seen, from how far, landmarks nearby…"></textarea>
+  <div class="chk" id="f-confirm-wrap" hidden>
+    <input type="checkbox" id="f-confirm">
+    <label for="f-confirm">Verification (required for suspect-live / escalated): I recorded this from a safe distance, did not approach or touch the item, and will notify a human operator.</label>
+  </div>
+  <div style="margin-top:10px"><button class="btn danger" id="btn-savefind">Save find to database</button></div>
+  <div class="msg" id="findmsg" role="status"></div>`;
+}
+function findListHtml(){
+  const mine = S.finds.filter(f=>f.country===S.country).slice().reverse();
+  if(!mine.length) return `<div class="empty">None yet in this browser. Saved finds are pinned on the map (green = synced to the database, amber = queued offline).</div>`;
+  const q = mine.filter(f=>f._status!=="synced").length;
+  return mine.map(f=>`<div class="finditem"><b>${esc(f.object_type||"object")}</b> · ${esc(f.zone_id||"no zone")} · <span class="st-${f._status==="synced"?"synced":"queued"}">${f._status==="synced"?"SYNCED ✓":"QUEUED OFFLINE ⏳"}</span>${f._status!=="synced"?` <button class="btn" style="width:auto;font-size:11px;padding:2px 8px;float:right" data-remove="${esc(f.id)}">Remove</button>`:""}<br><span style="color:var(--dim)">${esc(f.risk_flag)} · ${esc((f.recorded_at||"").slice(0,16).replace("T"," "))} · ${esc((f.notes||"").slice(0,80))}</span></div>`).join("")
+    + (q? `<div style="margin-top:8px"><button class="btn" id="btn-sync">Sync ${q} queued find${q>1?"s":""} now</button></div>` : "");
+}
+async function postFind(f){
+  const payload = {...f}; delete payload._status;
+  const r = await fetch(API+"/finds", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(payload)});
+  if(!r.ok) throw new Error(`${r.status}: ${(await r.json().catch(()=>({}))).detail || r.statusText}`);
+  return r.json();
+}
+async function syncQueued(msgEl){
+  let ok=0, fail=0;
+  for(const f of S.finds.filter(x=>x._status!=="synced")){
+    try{ await postFind(f); f._status="synced"; ok++; }catch(e){ fail++; }
+  }
+  saveFinds();
+  const z=S.zones.find(x=>x.id===S.selectedId); if(z) renderInspector(z);
+  const m2=$("findmsg"); if(m2) m2.innerHTML = fail? `<span class="msg err">${ok} synced, ${fail} still queued (API unreachable?).</span>` : `<span class="msg good">All queued finds synced.</span>`;
+  draw();
+}
+function startFindDraft(lon,lat,z){
+  S.findDraft = {zone_id: z? z.id : null, location:{type:"Point", coordinates:[lon,lat]}};
+  setFindMode(false);
+  if(z){ selectZone(z.id,false); const m=$("findmsg"); if(m) m.innerHTML=`<span class="msg good">Location set from map click — check the fields, then save.</span>`; }
+  else showBanner("That point is outside every zone in this country — pick a point inside a province.");
+}
+function setFindMode(on){
+  S.findMode=on;
+  canvas.classList.toggle("findmode",on);
+  $("btn-findmode").classList.toggle("on",on);
+  $("btn-findmode").textContent = on? "Click the map at the find…" : "Record a find";
+  showBanner(on? "Find mode: click the map where the object was seen (from a safe distance). The form opens with that location." : null);
+}
+function showBanner(txt){
+  const b=$("banner");
+  if(!txt){ b.style.display="none"; return; }
+  b.textContent=txt; b.style.display="block";
+  clearTimeout(showBanner._t); showBanner._t=setTimeout(()=>b.style.display="none", 6000);
+}
+function wireInspector(z){
+  $("btn-center").onclick = ()=>fitCountry(z);
+  $("btn-explain").onclick = async ()=>{
+    const m=$("explainmsg"); m.className="msg"; m.textContent="Asking Spark…";
+    try{
+      const r=await fetch(API+"/explain",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({zone_id:z.id})});
+      const body=await r.json().catch(()=>({}));
+      m.className="msg err"; m.textContent = `Spark isn't connected yet, so there's no AI answer — use the local briefing above. (Server said: ${body.detail||r.status})`;
+    }catch(e){ m.className="msg err"; m.textContent="API unreachable: "+e.message; }
+  };
+  const syncLoc = ()=>{
+    const lon=parseFloat($("f-lon").value), lat=parseFloat($("f-lat").value);
+    const hit = isFinite(lon)&&isFinite(lat) ? zoneAt(lon,lat) : null;
+    $("f-zone").innerHTML = hit? `Zone at this point: <b>${esc(hit.admin_name||hit.id)}</b> (${esc(hit.id)})` : "Zone at this point: <b>none — outside all zones</b> (find will be stored without a zone)";
+    $("f-zone").dataset.zone = hit? hit.id : "";
+  };
+  $("f-lon").addEventListener("input",syncLoc); $("f-lat").addEventListener("input",syncLoc); syncLoc();
+  // Governors/Verification: high-stakes flags need an explicit safe-distance confirm before save
+  const saveBtn = $("btn-savefind");
+  const gateCheck = ()=>{
+    const risky = ["suspect_live","escalated"].includes($("f-risk").value);
+    $("f-confirm-wrap").hidden = !risky;
+    saveBtn.disabled = risky && !$("f-confirm").checked;
+  };
+  $("f-risk").addEventListener("change",gateCheck);
+  $("f-confirm").addEventListener("change",gateCheck);
+  gateCheck();
+  document.querySelectorAll("[data-remove]").forEach(b=> b.onclick=()=>{  // H3: undo a queued find before sync
+    S.finds = S.finds.filter(f=>f.id!==b.dataset.remove); saveFinds(); renderInspector(z); draw(); announce("Queued find removed.");
+  });
+  saveBtn.onclick = async ()=>{
+    const lon=parseFloat($("f-lon").value), lat=parseFloat($("f-lat").value), m=$("findmsg");
+    if(!isFinite(lon)||!isFinite(lat)||lon<-180||lon>180||lat<-90||lat>90){ m.className="msg err"; m.textContent="That location isn't valid — longitude must be −180…180 and latitude −90…90. Click the map to set it instead."; return; }
+    saveBtn.disabled = true; saveBtn.textContent = "Saving…";  // H1: visible system status
+    const f = {
+      id: "gui-" + Date.now().toString(36) + "-" + Math.random().toString(36).slice(2,8),
+      country: S.country, zone_id: $("f-zone").dataset.zone || null,
+      object_type: $("f-type").value, condition: $("f-cond").value,
+      estimated_size: $("f-size").value.trim()||null, risk_flag: $("f-risk").value,
+      location:{type:"Point",coordinates:[lon,lat]},
+      notes: $("f-notes").value.trim()||null, photo_ref:null,
+      recorded_at: new Date().toISOString(), _status:"queued",
+    };
+    S.finds.push(f); saveFinds();
+    try{ await postFind(f); f._status="synced"; saveFinds(); announce("Find saved to the database."); m.className="msg good"; m.textContent="Saved to the database. It now counts as field evidence for this zone."; }
+    catch(e){ announce("Find could not be saved; queued offline."); m.className="msg err"; m.textContent=`Couldn't save right now, so it's queued offline on this device — nothing is lost. Start the server, then press Sync. (Detail: ${e.message})`; }
+    S.findDraft=null; renderInspector(z); draw();
+  };
+  const sb=$("btn-sync"); if(sb) sb.onclick=()=>syncQueued($("findmsg"));
+}
+// --- loading -------------------------------------------------------------------
+async function loadCountry(cid){
+  S.country=cid; S.selectedId=null; S.findDraft=null;
+  $("loading").style.display="flex"; $("loading").textContent=`loading ${cid} zones…`;
+  try{
+    const [profile, data] = await Promise.all([apiGet(`/countries/${cid}`), apiGet(`/zones?country=${cid}&limit=200`)]);
+    S.profile=profile; S.zones=data.zones; prepZones();
+    $("loading").style.display="none";
+    renderTabs(); renderLayers(); renderRanks(); updateChips(); fitCountry();
+    const demo = S.zones.find(z=>z.id===profile.demo_zone_id) || S.zones[0];
+    if(demo) selectZone(demo.id,false);
+  }catch(e){
+    $("loading").textContent = "Could not load zones — is the API running? " + e.message;
+  }
+}
+function updateChips(){
+  const n=S.zones.length, c=f=>S.zones.filter(z=>z[f]!=null).length;
+  $("chip-zones").innerHTML = `${esc(S.profile?S.profile.name:S.country)} zones <b>${n}</b>`;
+  $("chip-exp").innerHTML = `exposure <b>${c("exposure")}/${n}</b>`;
+  $("chip-crater").innerHTML = `crater evidence <b>${c("crater_evidence")}/${n}</b>`;
+  const sd=c("strike_density");
+  $("chip-thor").innerHTML = `strike density <b>${sd? sd+"/"+n : "THOR pending"}</b>`;
+  $("chip-thor").classList.toggle("warn", !sd);
+  updateFindChip();
+}
+async function init(){
+  sizeCanvas();
+  try{
+    const h = await apiGet("/health");
+    $("chip-api").innerHTML = `<span class="dot"></span>API ok · DB ${h.local_db_exists?"seeded":"MISSING"}`;
+    if(!h.local_db_exists) $("chip-api").classList.add("bad");
+  }catch(e){ $("chip-api").innerHTML=`<span class="dot"></span>API unreachable`; $("chip-api").classList.add("bad"); }
+  try{
+    const cs = await apiGet("/countries");
+    for(const p of cs) S.profiles[p.id]=p;
+  }catch(e){ $("loading").textContent="Could not load country profiles: "+e.message; return; }
+  await loadCountry("laos");
+  if(S.finds.some(f=>f._status!=="synced")) showBanner("You have finds queued offline from an earlier session — open any zone and press Sync to upload them.");
+}
+$("surveyed").onchange = e=>{ S.surveyed=e.target.value; renderRanks(); draw(); };
+$("q").addEventListener("input", e=>{ S.query=e.target.value; renderRanks(); });
+$("q").addEventListener("keydown", e=>{ if(e.key==="Enter"){ const f=filteredZones()[0]; if(f) selectZone(f.id,true); }});
+$("btn-demo").onclick = ()=>{ const id=S.profile&&S.profile.demo_zone_id; const z=S.zones.find(x=>x.id===id); if(z) selectZone(z.id,true); else showBanner("No demo province set for this country yet."); };
+$("btn-findmode").onclick = ()=>setFindMode(!S.findMode);
+// H7 keyboard paths: / search, Esc cancels find mode, arrows pan + +/- zoom when the map is focused
+canvas.addEventListener("keydown", e=>{
+  if(e.key==="ArrowLeft"){ S.view.tx += 60; e.preventDefault(); }
+  else if(e.key==="ArrowRight"){ S.view.tx -= 60; e.preventDefault(); }
+  else if(e.key==="ArrowUp"){ S.view.ty += 60; e.preventDefault(); }
+  else if(e.key==="ArrowDown"){ S.view.ty -= 60; e.preventDefault(); }
+  else if(e.key==="+"||e.key==="="){ zoomBy(1.25); e.preventDefault(); return; }
+  else if(e.key==="-"||e.key==="_"){ zoomBy(1/1.25); e.preventDefault(); return; }
+  else return;
+  draw();
+});
+document.addEventListener("keydown", e=>{
+  const tag = (document.activeElement||{}).tagName;
+  if(e.key==="/" && !["INPUT","TEXTAREA","SELECT"].includes(tag)){ e.preventDefault(); $("q").focus(); }
+  if(e.key==="Escape" && S.findMode) setFindMode(false);
+});
+window.addEventListener("resize", ()=>{ sizeCanvas(); draw(); });
+init();
+</script>
+</body>
+</html>

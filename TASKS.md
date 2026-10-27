@@ -52,11 +52,13 @@ that is already on disk — only the ingestion code is missing (P0-1).
   `pipelines/scoring.py:26` finally ranks zones instead of scoring 0.
   Also fixes the stale claim at `README.md:5` ("THOR has not landed" — the
   file landed; the pipeline hasn't).
-- [ ] **P0-2. Build the map UI. (M)** `frontend/index.html` is still the
-  scaffold placeholder ("The map lands with the first real ranking") and
-  its text is stale — it claims OSM exposure hasn't landed, but it has for
-  Laos + Cambodia. Needs P0-1 for real rankings; can be built against
-  `/zones` today.
+- [x] **P0-2. Build the map UI. — DONE 2026-10-27.** `frontend/index.html`
+  is now a single-file interactive map GUI (canvas choropleth per score
+  component, evidence-ranking list honestly labelled a preview until THOR
+  lands, per-zone inspector with a briefing generated from stored
+  components, and field-find recording via `POST /finds` with an offline
+  queue). Served by the backend at `/`; `Start-ClearField.bat` launches it.
+  Official priority ranking still needs P0-1.
 - [ ] **P0-3. Commit the work in progress and restore the remote. (S)**
   The repo has exactly one commit (`664bacb Project creation`), the
   upstream `origin/main` is **gone** (remote:
@@ -78,7 +80,11 @@ that is already on disk — only the ingestion code is missing (P0-1).
   same GADM-name convention as Laos `"Xiangkhoang"`). THOR scan: 31,419 missions,
   ≈ 6.37/km², #1 Cambodia on both count and density. Barthelme
   `crater_evidence` is still NULL there — ranking that province still
-  needs a crater source (P1-7 analogue) plus THOR ingest (P0-1).
+  needs a crater source (P1-7) plus THOR ingest (P0-1). Name-join fix:
+  `demo_area` is only a display name (`"Tbong Khmum"` matches 0 rows in
+  `zones.admin_name`, which stores GADM `TbongKhmum`); the stable join
+  key is the new required `demo_zone_id` (GADM `GID_1`: `KHM.25_1`,
+  Laos `LAO.18_1`, Vietnam `null`) — join on `zones.id`, never the name.
 
 ## P1 — core features still stubbed
 
@@ -99,10 +105,14 @@ that is already on disk — only the ingestion code is missing (P0-1).
   extracts are in `data/osm/`, so 63 Vietnam zones have no exposure yet.
   Pin the extract URL/checksum in `docs/data-manifest.md`
   (`countries/vietnam.json` `_todo`).
-- [ ] **P1-7. Barthelme coverage gap for the Laos demo. (M)**
+- [ ] **P1-7. Barthelme coverage gap for both demo provinces. (M)**
   Crater predictions cover lat 14.17–17.03 and don't reach Xiangkhoang
-  (`README.md:5`), so the demo province has no crater evidence. Decide:
-  new imagery/predictions for Xiangkhoang, or move the demo area.
+  (`LAO.18_1`, `README.md:5`), so that demo province has no crater
+  evidence. Same gap for the Cambodia demo: `crater_evidence` is NULL
+  for Tbong Khmum (`KHM.25_1`) as well — both demo provinces
+  (`demo_zone_id` in `countries/{laos,cambodia}.json`) have NULL
+  `crater_evidence`. Decide: new imagery/predictions for Xiangkhoang
+  and Tbong Khmum, or move the demo areas.
 - [ ] **P1-8. PostGIS target. (M)** Runtime is SQLite
   (`db/schema.local.sql`); `db/schema.sql` (PostGIS) is the target.
   Migration path + `DATABASE_URL` wiring per `docs/architecture.md`.
@@ -142,7 +152,7 @@ demo/         cached-responses/ — currently just a README (P1-5)
 docs/         architecture, data-manifest, demo-script, getting-started
   thor/       NEW: strike-density specs + scan evidence (rescued from .uv-tmp)
 field/        offline triage (stub)
-frontend/     placeholder page — map UI is P0-2
+frontend/     single-file map GUI, served by backend at / (P0-2 done)
 pipelines/    scoring.py (works, starved of THOR), osm_exposure.py (works),
               tiling.py + sam_segment.py (stubs)
 scripts/      download_data.* / seed_db.* (seed_thor.* lands with P0-1)

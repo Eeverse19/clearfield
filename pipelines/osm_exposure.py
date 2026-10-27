@@ -25,8 +25,9 @@ sparse in these extracts to stand alone), settlement ``place`` values,
 ``amenity=school``/``building=school``, any ``highway`` (roads), or
 farmland/residential ``landuse`` values. An element matching several
 categories counts ONCE toward exposure; per-category counts are printed
-as provenance. Ways are assigned by the mean of their node coordinates
-(a representative point), then a seed_db-style STRtree point-in-zone join;
+as provenance. Ways are assigned by the mean of their node coordinates,
+excluding the closing repeat of a closed way (a representative point),
+then a seed_db-style STRtree point-in-zone join;
 multi-hit boundary points go to the smallest zone id. Known v1 limits:
 road length / landuse area are not weighted, and a school node inside a
 school building way counts as two elements.
@@ -76,6 +77,8 @@ def feature_categories(tags: dict) -> set:
 def _varint(buf, pos):
     shift = result = 0
     while True:
+        if pos >= len(buf):
+            raise ValueError("truncated varint")
         b = buf[pos]
         pos += 1
         result |= (b & 0x7F) << shift
@@ -147,6 +150,10 @@ def _iter_blocks(path):
         pos += datasize
         raw = blob.get(1)
         if raw is None:
+            if 3 not in blob:
+                raise ValueError(
+                    f"{path}: unsupported blob compression "
+                    f"(blob fields {sorted(blob)}; only raw/zlib supported)")
             raw = zlib.decompress(blob[3])
         if 2 in blob and len(raw) != blob[2]:
             raise ValueError(f"{path}: blob raw_size {blob[2]} != {len(raw)}")
@@ -290,12 +297,15 @@ def parse_pbf_features(path):
     points = list(first["points"])
     by_category = dict(first["by_category"])
     invalid_ways = 0
+    partial_ways = 0
     if first["way_refs"]:
         want = set()
         for refs, _cats in first["way_refs"]:
             want.update(refs)
         coords = _scan_elements(path, want_coords=want)["coords"]
         for refs, cats in first["way_refs"]:
+            if len(refs) > 1 and refs[0] == refs[-1]:
+                refs = refs[:-1]  # closed way: closing repeat is not a corner
             pts = [coords[r] for r in refs if r in coords]
             if not pts:
                 invalid_ways += 1
@@ -305,11 +315,14 @@ def parse_pbf_features(path):
             if not (-180.0 <= lon <= 180.0 and -90.0 <= lat <= 90.0):
                 invalid_ways += 1
                 continue
+            if len(pts) < len(refs):
+                partial_ways += 1
             points.append((lon, lat, cats))
             for c in cats:
                 by_category[c] += 1
     info = dict(first["stats"])
     info["invalid_ways"] = invalid_ways
+    info["partial_ways"] = partial_ways
     info["features"] = len(points)
     info["by_category"] = by_category
     return points, info
@@ -439,6 +452,7 @@ def exposure_country(country_id: str, db_path=None, pbf_path=None,
         "outside": counters["outside"],
         "multi_hit": counters["multi_hit"],
         "invalid_ways": info["invalid_ways"],
+        "partial_ways": info["partial_ways"],
         "invalid_points": info["invalid_points"],
         "elements": {"nodes": info["nodes"], "ways": info["ways"],
                      "relations": info["relations"]},
@@ -452,7 +466,7 @@ if __name__ == "__main__":
     profile = country_arg()
     try:
         summary = exposure_country(profile["id"], osm_extract=profile["osm_extract"])
-    except FileNotFoundError as exc:
+    except (FileNotFoundError, ValueError) as exc:
         print(f"[osm_exposure] {exc}", file=sys.stderr)
         print("[osm_exposure] no zones updated; exposure left as-is (NULL).",
               file=sys.stderr)
@@ -464,6 +478,7 @@ if __name__ == "__main__":
     print(f"[osm_exposure] features {summary['features']} = assigned {summary['assigned']} "
           f"+ outside {summary['outside']}; multi-hit {summary['multi_hit']}; "
           f"invalid ways/points {summary['invalid_ways']}/{summary['invalid_points']}; "
+          f"partial ways {summary['partial_ways']}; "
           f"elements {summary['elements']}; by category {summary['by_category']}")
     print(f"[osm_exposure] source {summary['pbf']}")
     print("[osm_exposure] priority scores untouched; run pipelines/scoring.py next.")

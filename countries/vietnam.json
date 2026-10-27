@@ -3,6 +3,7 @@
   "name": "Vietnam",
   "languages": ["en", "vi"],
   "demo_area": null,
+  "demo_zone_id": null,
   "strike_source": {
     "type": "thor",
     "dataset": "data/thor/thor_data_vietnam.csv",
