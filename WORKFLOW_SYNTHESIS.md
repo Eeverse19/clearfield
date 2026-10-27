@@ -5,7 +5,7 @@
 > Workflow", labels 1–6, `reads: []`, summaries "structured result submitted").
 > No prior evidence text was readable in this run. Winner: the gap markers.
 > Everything below was therefore re-derived first-hand on 2026-10-26 from the
-> workspace at `C:/Users/ErikEverse/Documents/GitHub/clearfield`: full reads of
+> workspace at the repo root: full reads of
 > code/tests/docs, read-only SQLite queries against `data/clearfield.db`,
 > source-file counts inside `data/barthelme/predictions.zip`, and
 > `.venv\Scripts\python.exe -m pytest -q` → **9 passed, 1 skipped**.

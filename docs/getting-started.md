@@ -2,7 +2,7 @@
 
 Target audience: a developer (or a future contributor) setting ClearField up from scratch. Estimated time once the pieces exist: ~30 minutes plus download time.
 
-> Status (Oct 26, 2026): sections 1, 2 (pinned files only), 3 (SQLite seed), 4, and 7 work today; the local DB is seeded (106 zones, 541,397 craters). Section 5: `scoring.py` works and correctly scores 0 zones until THOR+OSM land; `tiling.py`/`sam_segment.py` are still stubs. `META_API_KEY` is still to be provided. Full audit: [`../WORKFLOW_SYNTHESIS.md`](../WORKFLOW_SYNTHESIS.md).
+> Status (Oct 27, 2026): sections 1, 2 (pinned files only), 3 (SQLite seed), 4, and 7 work today; the local DB is seeded (106 zones, 541,397 craters; OSM exposure for Laos + Cambodia). Section 5: `osm_exposure.py` + `scoring.py` work; scoring correctly scores 0 zones until THOR lands; `tiling.py`/`sam_segment.py` are still stubs. `META_API_KEY` is still to be provided. Full audit: [`../WORKFLOW_SYNTHESIS.md`](../WORKFLOW_SYNTHESIS.md).
 
 ## Prerequisites
 
@@ -27,7 +27,7 @@ cp .env.example .env
 scripts\download_data.ps1 predictions.zip tables.zip README.txt gadm41_LAO_1.json gadm41_KHM_1.json gadm41_VNM_1.json
 ```
 
-Pinned today: the Barthelme KH-9 crater pack (Zenodo 10629987) and GADM 4.1 admin-1 boundaries for LAO/KHM/VNM. Barthelme files are MD5-checked against `docs/data-manifest.md` — a mismatch stops the script; re-run it (downloads resume). GADM publishes no checksum, so the script reports locally computed MD5s. UXOTi_NPA, AMLID, and OSM extracts are not pinned yet; Barthelme `data.zip`/`models.zip` (≈2.8 GB) download only if you ask for all files.
+Pinned today: the Barthelme KH-9 crater pack (Zenodo 10629987), GADM 4.1 admin-1 boundaries for LAO/KHM/VNM, and Geofabrik OSM extracts for Laos + Cambodia (`-261025`, ODbL 1.0). Barthelme and OSM files are MD5-checked against `docs/data-manifest.md` — a mismatch stops the script; re-run it (downloads resume). GADM publishes no checksum, so the script reports locally computed MD5s. UXOTi_NPA and AMLID are not pinned yet; Barthelme `data.zip`/`models.zip` (≈2.8 GB) download only if you ask for all files.
 
 **Two manual steps the script cannot do for you:**
 - **THOR** (`thor_data_vietnam.csv`, ~1.5 GB): create a free account at data.world, download from data.world/datamil/vietnam-war-thor-data, place the file in `data/thor/`.
@@ -62,7 +62,8 @@ start frontend/index.html
 ```bash
 uv run python pipelines/tiling.py --country laos        # stub: imagery -> 256x256 tiles
 uv run python pipelines/sam_segment.py --country laos   # stub: SAM 3.1 -> masks -> GeoJSON, cached
-uv run python pipelines/scoring.py --country laos       # works: deterministic ranking -> local DB (0 scored until THOR+OSM)
+uv run python pipelines/osm_exposure.py --country laos   # works: OSM features/km2 -> zones.exposure
+uv run python pipelines/scoring.py --country laos       # works: deterministic ranking -> local DB (0 scored until THOR)
 # Repeat with --country cambodia. Same code path — that is the portability proof.
 ```
 

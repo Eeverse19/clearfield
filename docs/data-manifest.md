@@ -38,7 +38,11 @@ Every file below is public. Nothing under `data/` is committed to git; `scripts/
 - **Georeferenced KH-9** — Edinburgh DataShare: Quang Tri doi 10.7488/ds/7682, tri-border doi 10.7488/ds/7683 (8mpp versions ~430 MB each)
 - **Current imagery** — Sentinel-2, Planet NICFI tropics mosaics
 - **Boundaries** — GADM 4.1 admin-1 GeoJSON (geodata.ucdavis.edu/gadm/gadm4.1/json/), no source checksum; downloaded Oct 26, 2026: `gadm41_LAO_1.json` (183,636 B, 18 features, local md5 `7c58682405ad7e7cb08906e645c79e00`), `gadm41_KHM_1.json` (263,580 B, 25 features, local md5 `d830c8d34355eee27c0d08ce75de5923`), `gadm41_VNM_1.json` (821,030 B, 63 features, local md5 `831f106f2deffbeea6f978464816169c`)
-- **Human geography** — OpenStreetMap extracts per country (villages, farmland, schools, roads)
+- **Human geography (OSM exposure)** — OpenStreetMap country extracts via Geofabrik (`download.geofabrik.de/asia/`), snapshot/replication timestamp 2026-10-25T21:21:21Z (`261025` in filenames), written by `osmium/1.16.0` (OSMHeader). License: ODbL 1.0, © OpenStreetMap contributors — attribution required; the derived per-zone `exposure` density is a produced aggregate of this database, so keep this attribution wherever scores are shown. Pinned + verified Oct 27, 2026 (local MD5s identical to Geofabrik's published `.md5`; the `.osm.pbf` URLs below are the siblings of those `.md5` files — dated Geofabrik files may rotate, so re-pin rather than skip the checksum if a fetch 404s):
+  - `data/osm/laos-261025.osm.pbf` (53,978,663 B) — md5 `bf854b5f14bec74d8854742d227b8695` ✓ — `https://download.geofabrik.de/asia/laos-261025.osm.pbf`
+  - `data/osm/cambodia-261025.osm.pbf` (41,150,119 B) — md5 `7403c81f9de80c012fb930c0758e48ef` ✓ — `https://download.geofabrik.de/asia/cambodia-261025.osm.pbf`
+  - No Vietnam extract acquired (out of demo scope): its 63 zones keep `exposure = NULL`.
+  - Consumed by `pipelines/osm_exposure.py`: exposure = exposure features per km² (buildings as settlement proxy, settlement `place`, schools, highways, farmland/residential `landuse`; equal weight, one per OSM element; see module docstring for the v1 limits).
 - **Elevation/canopy covariates** — Copernicus DEM, GEDI canopy height
 
 ## 6. Labeled damage data (modern conflicts)

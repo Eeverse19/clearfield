@@ -2,9 +2,9 @@
 
 Usage: python scripts/download_data.py [file.zip ...]  (no args = all pinned)
 
-Barthelme KH-9 pack (Zenodo 10629987) URLs are pinned; downloads resume and a
-checksum failure stops the script. UXOTi_NPA, AMLID, GADM and OSM extracts are
-not pinned yet, and THOR always stays manual (free data.world account):
+Barthelme KH-9 pack (Zenodo 10629987) and OSM (Geofabrik) URLs are pinned;
+downloads resume and a checksum failure stops the script. UXOTi_NPA and AMLID
+are not pinned yet, and THOR always stays manual (free data.world account):
 data.world/datamil/vietnam-war-thor-data -> data/thor/thor_data_vietnam.csv.
 Stdlib only, so the .sh/.ps1 wrappers need nothing but Python.
 """
@@ -28,6 +28,12 @@ FILES = [
     ("gadm/gadm41_LAO_1.json", "https://geodata.ucdavis.edu/gadm/gadm4.1/json/gadm41_LAO_1.json", None, 183_636),
     ("gadm/gadm41_KHM_1.json", "https://geodata.ucdavis.edu/gadm/gadm4.1/json/gadm41_KHM_1.json", None, 263_580),
     ("gadm/gadm41_VNM_1.json", "https://geodata.ucdavis.edu/gadm/gadm4.1/json/gadm41_VNM_1.json", None, 821_030),
+    # OSM country extracts (Geofabrik, 2026-10-25 snapshot; ODbL 1.0).
+    # MD5s verified against Geofabrik's published .md5 (Oct 27, 2026). The
+    # .osm.pbf URLs are the siblings of those .md5 files; dated Geofabrik
+    # files may rotate, so a 404 here means re-pin, never skip the MD5.
+    ("osm/laos-261025.osm.pbf", "https://download.geofabrik.de/asia/laos-261025.osm.pbf", "bf854b5f14bec74d8854742d227b8695", 53_978_663),
+    ("osm/cambodia-261025.osm.pbf", "https://download.geofabrik.de/asia/cambodia-261025.osm.pbf", "7403c81f9de80c012fb930c0758e48ef", 41_150_119),
 ]
 
 
@@ -83,7 +89,7 @@ def main(argv: list[str]) -> int:
             return 1
         print(f"OK (downloaded, md5 verified) data/{rel}")
     print("MANUAL (not fetched): data/thor/thor_data_vietnam.csv (data.world account required)")
-    print("TODO (URLs not pinned): UXOTi_NPA (Figshare 21688673), AMLID (Zenodo 18001447), OSM extracts")
+    print("TODO (URLs not pinned): UXOTi_NPA (Figshare 21688673), AMLID (Zenodo 18001447)")
     return 0
 
 

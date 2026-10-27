@@ -16,7 +16,7 @@ design bug — fix the design, not the country.
 | `strike_source` | `{type, dataset, country_filter}` — THOR for Tier 1, UCDP/ACLED later |
 | `imagery` | Image sets used for tiling/segmentation, in preference order |
 | `boundaries` | Boundary source (GADM) and admin level used for zones |
-| `osm_extract` | OSM extract identifier for villages/farmland/schools/roads |
+| `osm_extract` | OSM extract for exposure: repo-relative `data/osm/<name>-<YYMMDD>.osm.pbf` path (pinned), or bare slug until pinned |
 | `stats_source` | Published province-level statistics (never IMSMA polygons) |
 | `_todo` | Unresolved items; empty list means the profile is data-complete |
 

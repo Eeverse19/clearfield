@@ -13,3 +13,15 @@ data/*
 !data/.gitkeep
 *.db
 *.sqlite3
+*.osm.pbf
+# Unpacked THOR download staging (canonical copy: data/thor/, already ignored).
+/THOR VIETNAM DATA/
+pytest-of-*/
+# Secrets variants + dataset archives live under data/ (already ignored);
+# these guard the rest of the tree against stray secrets/archives.
+.env.*
+!.env.example
+*.pem
+*.key
+*.csv
+*.zip

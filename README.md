@@ -2,7 +2,7 @@
 
 **A clearance-prioritization platform for bombed countries.** ClearField fuses declassified bombing records with satellite imagery and human geography to rank which land should be surveyed and cleared first, explains every ranking in plain language, and lets field workers record new finds offline — built once, reusable in any bombed country by swapping a data profile.
 
-> Project status: scaffold + first data tranche (Oct 26, 2026). In place and tested: repo structure, country profiles, schemas, deterministic scoring, `/zones` + `/finds` over the local DB, and a seeded database (106 GADM zones; 541,397 real Barthelme craters; 9 zones with crater evidence). No zone is rankable yet — strike density (THOR) and exposure (OSM) have not landed, `META_API_KEY` is still to be provided, and there are no live model calls. Barthelme coverage (lat 14.17–17.03) does not reach the Laos demo province Xieng Khouang. Details: [`WORKFLOW_SYNTHESIS.md`](WORKFLOW_SYNTHESIS.md). This README describes the target state.
+> Project status: scaffold + first data tranche (Oct 27, 2026). In place and tested: repo structure, country profiles, schemas, deterministic scoring, `/zones` + `/finds` over the local DB, and a seeded database (106 GADM zones; 541,397 real Barthelme craters; 9 zones with crater evidence; OSM exposure computed for all 18 Laos + 25 Cambodia zones by `pipelines/osm_exposure.py`). No zone is rankable yet — strike density (THOR) has not landed, so scoring still correctly scores 0 zones; `META_API_KEY` is still to be provided, and there are no live model calls. Barthelme coverage (lat 14.17–17.03) does not reach the Laos demo province Xieng Khouang. Details: [`WORKFLOW_SYNTHESIS.md`](WORKFLOW_SYNTHESIS.md). This README describes the target state.
 
 ## The problem
 
@@ -43,17 +43,18 @@ Full guide: [`docs/getting-started.md`](docs/getting-started.md). Short version:
 git clone <repo-url> clearfield; cd clearfield
 Copy-Item .env.example .env   # fill in META_API_KEY when available
 uv sync                       # project-local Python env (.venv)
-scripts\download_data.ps1 predictions.zip tables.zip README.txt gadm41_LAO_1.json gadm41_KHM_1.json gadm41_VNM_1.json
+scripts\download_data.ps1 predictions.zip tables.zip README.txt gadm41_LAO_1.json gadm41_KHM_1.json gadm41_VNM_1.json laos-261025.osm.pbf cambodia-261025.osm.pbf
 scripts\seed_db.ps1           # ~65 min: GADM zones + Barthelme craters -> data/clearfield.db (SQLite)
+uv run python pipelines/osm_exposure.py --country laos   # OSM exposure per zone (repeat: cambodia)
 uv run pytest
 uv run uvicorn backend.app.main:app --reload   # API on :8000, open frontend/index.html
-uv run python pipelines/scoring.py --country laos   # scores 0 until THOR+OSM land (by design)
+uv run python pipelines/scoring.py --country laos   # scores 0 until THOR lands (by design)
 # DB target schema: db/schema.sql (PostGIS); runtime today: db/schema.local.sql (SQLite).
 ```
 
 ## Data
 
-All datasets are public and reproduced by [`scripts/download_data.sh`](scripts/download_data.sh) (Python implementation, `.ps1` twin); nothing under `data/` is committed. Barthelme files are MD5-verified; GADM publishes no checksum (local MD5s recorded in the manifest). THOR, UXOTi_NPA, AMLID, and OSM downloads are not pinned yet. Sources and licenses: [`docs/data-manifest.md`](docs/data-manifest.md).
+All datasets are public and reproduced by [`scripts/download_data.sh`](scripts/download_data.sh) (Python implementation, `.ps1` twin); nothing under `data/` is committed. Barthelme files are MD5-verified; GADM publishes no checksum (local MD5s recorded in the manifest). Barthelme and OSM (Geofabrik) downloads are pinned and MD5-checked; THOR, UXOTi_NPA, and AMLID are not pinned yet. Sources and licenses: [`docs/data-manifest.md`](docs/data-manifest.md).
 
 ## Demo
 

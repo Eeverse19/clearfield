@@ -10,11 +10,10 @@
   },
   "imagery": ["kh9_barthelme_tri_border_area", "sentinel2", "planet_nicfi"],
   "boundaries": {"source": "gadm", "country_code": "LAO", "admin_level": 1},
-  "osm_extract": "laos",
+  "osm_extract": "data/osm/laos-261025.osm.pbf",
   "stats_source": "Published Laos NRA province-level statistics (not IMSMA polygons)",
   "_todo": [
     "THOR csv requires a manual data.world download into data/thor/",
-    "Confirm exact THOR country-column value once the csv header is available",
-    "Pin GADM/OSM extract URLs and checksums in docs/data-manifest.md"
+    "Confirm exact THOR country-column value once the csv header is available"
   ]
 }

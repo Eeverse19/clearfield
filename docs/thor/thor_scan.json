@@ -1,0 +1,1378 @@
+{
+ "zip": {
+  "path": "~/Downloads/THOR_Vietnam.zip",
+  "size": 457332289,
+  "md5": "3b39a4921f7c0912fbe961184911167e"
+ },
+ "csv": {
+  "path": "data\\thor\\THOR_Vietnam_7_31_2013.csv",
+  "size": 2627971171,
+  "md5": "939f28d770d9b3b9acd37553eab0fb85",
+  "header_ncols": 85,
+  "header": [
+   "SourceRecord",
+   "SourceID",
+   "MSNDate",
+   "Conflict",
+   "Theater",
+   "CountryFlyingMission",
+   "MilService",
+   "NumberedAirForce",
+   "AirForceGroup",
+   "AirForceSQDN",
+   "Unit",
+   "Callsign",
+   "Aircraft_Original",
+   "Aircraft_Root",
+   "MissionID",
+   "MFUNC",
+   "MFUNC_DESC",
+   "ServiceSupported",
+   "OperationSupported",
+   "TakeoffLocation",
+   "TakeoffLatDeg",
+   "TakeoffLatDecimal",
+   "TakeoffLatDD_DDD",
+   "TakeoffLonDeg",
+   "TakeoffLonDecimal",
+   "TakeoffLonDDD_DDD",
+   "FltHours",
+   "NumOfAcft",
+   "TgtPriority",
+   "TgtLocationName",
+   "TgtLatDeg_IND60",
+   "TgtLatDecimal_IND60",
+   "TgtLatDD_DDD_IND60",
+   "TgtLonDeg_IND60",
+   "TgtLonDecimal_IND60",
+   "TgtLonDDD_DDD_IND60",
+   "TgtOrigCoords",
+   "TgtOrigCoordsFormat",
+   "TgtOrigCoordsPrecision",
+   "TgtCountry",
+   "TgtType",
+   "TgtID",
+   "TgtIndustry",
+   "TgtControl",
+   "TgtWeather",
+   "TgtCloudCover",
+   "TgtCloudBase",
+   "WeaponType",
+   "NumWeaponsLoaded",
+   "NumWeaponsJettisoned",
+   "NumWeaponsReturned",
+   "NumWeaponsDelivered",
+   "WeaponsLoadedWeight",
+   "WeaponsJettisonedWeight",
+   "WeaponsReturnedWeight",
+   "WeaponsDeliveredWeight",
+   "DeliveryTactic",
+   "SightingNavMethod",
+   "ReleaseFltSpeed",
+   "ReleaseAltitude",
+   "PeriodOfDay",
+   "TimeOnTarget",
+   "TimeOffTarget",
+   "WeaponImpact",
+   "ResultsBDA",
+   "Comments",
+   "SortieDuplicate",
+   "Visibility",
+   "KMLLatDegDecimal",
+   "KMLLonDegDecimal",
+   "KMLDateTime",
+   "AdditionalInfo",
+   "ID",
+   "TgtLatRoundPt25",
+   "TgtLonRoundPt25",
+   "GunMissileBombType",
+   "TgtLatRoundPt125",
+   "TgtLonRoundPt125",
+   "WeaponTypeWeight",
+   "TgtLatDeg_WGS84",
+   "TgtLatDecimal_WGS84",
+   "TgtLatDD_DDD_WGS84",
+   "TgtLonDeg_WGS84",
+   "TgtLonDecimal_WGS84",
+   "TgtLonDDD_DDD_WGS84"
+  ],
+  "short_rows_padded": 6
+ },
+ "disk": {
+  "total": null,
+  "used": null,
+  "free": null,
+  "free_gb": null
+ },
+ "total_rows": 4670422,
+ "msndate": {
+  "min": "19650601",
+  "max": "19750630",
+  "invalid_or_empty": 0
+ },
+ "per_tgtcountry": {
+  "(EMPTY)": {
+   "total": 216780,
+   "valid_coords": 37377,
+   "zero_zero": 0,
+   "invalid_coords": 179403,
+   "weapons_sum_max0": 931280,
+   "weapons_unparseable": 6,
+   "assigned": 36891,
+   "unassigned": 486,
+   "invalid_coords_excl_zero_zero": 179403
+  },
+  "CAMBODIA": {
+   "total": 223722,
+   "valid_coords": 147097,
+   "zero_zero": 0,
+   "invalid_coords": 76625,
+   "weapons_sum_max0": 8324562,
+   "weapons_unparseable": 0,
+   "assigned": 146984,
+   "unassigned": 113,
+   "invalid_coords_excl_zero_zero": 76625
+  },
+  "LAOS": {
+   "total": 1269847,
+   "valid_coords": 1087019,
+   "zero_zero": 0,
+   "invalid_coords": 182828,
+   "weapons_sum_max0": 20646027,
+   "weapons_unparseable": 0,
+   "assigned": 1081316,
+   "unassigned": 5703,
+   "invalid_coords_excl_zero_zero": 182828
+  },
+  "NORTH VIETNAM": {
+   "total": 695662,
+   "valid_coords": 607482,
+   "zero_zero": 0,
+   "invalid_coords": 88180,
+   "weapons_sum_max0": 4824667,
+   "weapons_unparseable": 0,
+   "assigned": 524918,
+   "unassigned": 82564,
+   "invalid_coords_excl_zero_zero": 88180
+  },
+  "PHILLIPINES": {
+   "total": 1,
+   "valid_coords": 1,
+   "zero_zero": 0,
+   "invalid_coords": 0,
+   "weapons_sum_max0": 0,
+   "weapons_unparseable": 0,
+   "assigned": 0,
+   "unassigned": 1,
+   "invalid_coords_excl_zero_zero": 0
+  },
+  "SOUTH VIETNAM": {
+   "total": 2203684,
+   "valid_coords": 1658608,
+   "zero_zero": 0,
+   "invalid_coords": 545076,
+   "weapons_sum_max0": 54549042,
+   "weapons_unparseable": 0,
+   "assigned": 1628979,
+   "unassigned": 29629,
+   "invalid_coords_excl_zero_zero": 545076
+  },
+  "THAILAND": {
+   "total": 60593,
+   "valid_coords": 2574,
+   "zero_zero": 0,
+   "invalid_coords": 58019,
+   "weapons_sum_max0": 795118,
+   "weapons_unparseable": 0,
+   "assigned": 151,
+   "unassigned": 2423,
+   "invalid_coords_excl_zero_zero": 58019
+  },
+  "UNKNOWN": {
+   "total": 59,
+   "valid_coords": 45,
+   "zero_zero": 0,
+   "invalid_coords": 14,
+   "weapons_sum_max0": 195,
+   "weapons_unparseable": 0,
+   "assigned": 43,
+   "unassigned": 2,
+   "invalid_coords_excl_zero_zero": 14
+  },
+  "WESTPAC WATERS": {
+   "total": 74,
+   "valid_coords": 73,
+   "zero_zero": 0,
+   "invalid_coords": 1,
+   "weapons_sum_max0": 173,
+   "weapons_unparseable": 0,
+   "assigned": 4,
+   "unassigned": 69,
+   "invalid_coords_excl_zero_zero": 1
+  }
+ },
+ "manifest_comparison": {
+  "LAOS": {
+   "manifest_with_coords": 1041519,
+   "actual_valid_coords": 1087019,
+   "diff_actual_minus_manifest": 45500,
+   "match": false
+  },
+  "SOUTH VIETNAM": {
+   "manifest_with_coords": 1620422,
+   "actual_valid_coords": 1658608,
+   "diff_actual_minus_manifest": 38186,
+   "match": false
+  },
+  "NORTH VIETNAM": {
+   "manifest_with_coords": 581897,
+   "actual_valid_coords": 607482,
+   "diff_actual_minus_manifest": 25585,
+   "match": false
+  },
+  "CAMBODIA": {
+   "manifest_with_coords": 144944,
+   "actual_valid_coords": 147097,
+   "diff_actual_minus_manifest": 2153,
+   "match": false
+  },
+  "THAILAND": {
+   "manifest_with_coords": 2427,
+   "actual_valid_coords": 2574,
+   "diff_actual_minus_manifest": 147,
+   "match": false
+  }
+ },
+ "manifest_all_match": false,
+ "zones": {
+  "count": 106,
+  "columns": [
+   "id",
+   "country",
+   "admin_name",
+   "geom",
+   "strike_density",
+   "crater_evidence",
+   "exposure",
+   "surveyed_status",
+   "priority_score",
+   "priority_rank",
+   "scored_at"
+  ],
+  "unassigned_valid_missions": 120990,
+  "assigned_valid_missions": 3419286,
+  "country_mismatch_total": 144672,
+  "country_mismatch_by_pair": {
+   "LAOS (implied laos) -> zone vietnam": 37183,
+   "SOUTH VIETNAM (implied vietnam) -> zone cambodia": 31140,
+   "NORTH VIETNAM (implied vietnam) -> zone laos": 30226,
+   "SOUTH VIETNAM (implied vietnam) -> zone laos": 27778,
+   "LAOS (implied laos) -> zone cambodia": 9935,
+   "CAMBODIA (implied cambodia) -> zone vietnam": 5365,
+   "NORTH VIETNAM (implied vietnam) -> zone cambodia": 2228,
+   "CAMBODIA (implied cambodia) -> zone laos": 817
+  },
+  "other_implied_valid": 40070,
+  "other_implied_assigned": 37089,
+  "per_zone": [
+   {
+    "id": "KHM.25_1",
+    "country": "cambodia",
+    "admin_name": "TbongKhmum",
+    "area_km2": 4931.079,
+    "missions": 31419,
+    "weapons": 505380,
+    "missions_per_km2": 6.371627
+   },
+   {
+    "id": "KHM.8_1",
+    "country": "cambodia",
+    "admin_name": "K\u00e2ndal",
+    "area_km2": 3254.034,
+    "missions": 16448,
+    "weapons": 433860,
+    "missions_per_km2": 5.054648
+   },
+   {
+    "id": "KHM.23_1",
+    "country": "cambodia",
+    "admin_name": "SvayRieng",
+    "area_km2": 2868.286,
+    "missions": 13708,
+    "weapons": 179871,
+    "missions_per_km2": 4.77916
+   },
+   {
+    "id": "KHM.16_1",
+    "country": "cambodia",
+    "admin_name": "PhnomPenh",
+    "area_km2": 685.058,
+    "missions": 3021,
+    "weapons": 60989,
+    "missions_per_km2": 4.409847
+   },
+   {
+    "id": "KHM.19_1",
+    "country": "cambodia",
+    "admin_name": "PreyV\u00eang",
+    "area_km2": 4766.432,
+    "missions": 14039,
+    "weapons": 266173,
+    "missions_per_km2": 2.94539
+   },
+   {
+    "id": "KHM.24_1",
+    "country": "cambodia",
+    "admin_name": "Tak\u00eav",
+    "area_km2": 3492.763,
+    "missions": 8211,
+    "weapons": 216976,
+    "missions_per_km2": 2.350861
+   },
+   {
+    "id": "KHM.3_1",
+    "country": "cambodia",
+    "admin_name": "K\u00e2mp\u00f3ngCham",
+    "area_km2": 4552.309,
+    "missions": 10287,
+    "weapons": 169050,
+    "missions_per_km2": 2.259732
+   },
+   {
+    "id": "KHM.10_1",
+    "country": "cambodia",
+    "admin_name": "Kep",
+    "area_km2": 152.302,
+    "missions": 329,
+    "weapons": 8047,
+    "missions_per_km2": 2.160185
+   },
+   {
+    "id": "KHM.11_1",
+    "country": "cambodia",
+    "admin_name": "Kr\u00e2ch\u00e9h",
+    "area_km2": 11984.36,
+    "missions": 17369,
+    "weapons": 267646,
+    "missions_per_km2": 1.449306
+   },
+   {
+    "id": "KHM.20_1",
+    "country": "cambodia",
+    "admin_name": "R\u00f4t\u00e2n\u00f4kiri",
+    "area_km2": 11780.939,
+    "missions": 16391,
+    "weapons": 261074,
+    "missions_per_km2": 1.391315
+   },
+   {
+    "id": "KHM.4_1",
+    "country": "cambodia",
+    "admin_name": "K\u00e2mp\u00f3ngChhnang",
+    "area_km2": 5384.005,
+    "missions": 6081,
+    "weapons": 198942,
+    "missions_per_km2": 1.129457
+   },
+   {
+    "id": "KHM.9_1",
+    "country": "cambodia",
+    "admin_name": "Ka\u00f4hKong",
+    "area_km2": 11007.307,
+    "missions": 11824,
+    "weapons": 116681,
+    "missions_per_km2": 1.074196
+   },
+   {
+    "id": "KHM.6_1",
+    "country": "cambodia",
+    "admin_name": "K\u00e2mp\u00f3ngThum",
+    "area_km2": 12829.2,
+    "missions": 13369,
+    "weapons": 261468,
+    "missions_per_km2": 1.042076
+   },
+   {
+    "id": "KHM.7_1",
+    "country": "cambodia",
+    "admin_name": "K\u00e2mp\u00f4t",
+    "area_km2": 4722.886,
+    "missions": 4407,
+    "weapons": 85806,
+    "missions_per_km2": 0.933116
+   },
+   {
+    "id": "KHM.5_1",
+    "country": "cambodia",
+    "admin_name": "K\u00e2mp\u00f3ngSp\u0153",
+    "area_km2": 6971.016,
+    "missions": 6032,
+    "weapons": 168343,
+    "missions_per_km2": 0.865297
+   },
+   {
+    "id": "KHM.22_1",
+    "country": "cambodia",
+    "admin_name": "St\u0153ngTr\u00eang",
+    "area_km2": 12020.733,
+    "missions": 9503,
+    "weapons": 136173,
+    "missions_per_km2": 0.790551
+   },
+   {
+    "id": "KHM.14_1",
+    "country": "cambodia",
+    "admin_name": "M\u00f4nd\u00f3lKiri",
+    "area_km2": 13663.801,
+    "missions": 9156,
+    "weapons": 79365,
+    "missions_per_km2": 0.670092
+   },
+   {
+    "id": "KHM.13_1",
+    "country": "cambodia",
+    "admin_name": "KrongPreahSihanouk",
+    "area_km2": 2634.785,
+    "missions": 484,
+    "weapons": 13747,
+    "missions_per_km2": 0.183696
+   },
+   {
+    "id": "KHM.18_1",
+    "country": "cambodia",
+    "admin_name": "PreahVih\u00e9ar",
+    "area_km2": 14041.355,
+    "missions": 1703,
+    "weapons": 38522,
+    "missions_per_km2": 0.121285
+   },
+   {
+    "id": "KHM.21_1",
+    "country": "cambodia",
+    "admin_name": "Siemr\u00e9ab",
+    "area_km2": 11478.466,
+    "missions": 505,
+    "weapons": 18944,
+    "missions_per_km2": 0.043995
+   },
+   {
+    "id": "KHM.17_1",
+    "country": "cambodia",
+    "admin_name": "Pouthisat",
+    "area_km2": 12511.009,
+    "missions": 304,
+    "weapons": 9495,
+    "missions_per_km2": 0.024299
+   },
+   {
+    "id": "KHM.15_1",
+    "country": "cambodia",
+    "admin_name": "OtdarMeanChey",
+    "area_km2": 6632.758,
+    "missions": 114,
+    "weapons": 653,
+    "missions_per_km2": 0.017187
+   },
+   {
+    "id": "KHM.2_1",
+    "country": "cambodia",
+    "admin_name": "Batd\u00e2mb\u00e2ng",
+    "area_km2": 12107.138,
+    "missions": 69,
+    "weapons": 3050,
+    "missions_per_km2": 0.005699
+   },
+   {
+    "id": "KHM.1_1",
+    "country": "cambodia",
+    "admin_name": "B\u00e2nt\u00e9ayM\u00e9anchey",
+    "area_km2": 6145.208,
+    "missions": 35,
+    "weapons": 12,
+    "missions_per_km2": 0.005695
+   },
+   {
+    "id": "KHM.12_1",
+    "country": "cambodia",
+    "admin_name": "KrongPailin",
+    "area_km2": 1075.618,
+    "missions": 1,
+    "weapons": 0,
+    "missions_per_km2": 0.00093
+   },
+   {
+    "id": "LAO.12_1",
+    "country": "laos",
+    "admin_name": "Savannakh\u00e9t",
+    "area_km2": 21425.399,
+    "missions": 339205,
+    "weapons": 4282759,
+    "missions_per_km2": 15.831911
+   },
+   {
+    "id": "LAO.6_1",
+    "country": "laos",
+    "admin_name": "Khammouan",
+    "area_km2": 16559.757,
+    "missions": 250971,
+    "weapons": 2230110,
+    "missions_per_km2": 15.155476
+   },
+   {
+    "id": "LAO.18_1",
+    "country": "laos",
+    "admin_name": "Xiangkhoang",
+    "area_km2": 12647.507,
+    "missions": 162976,
+    "weapons": 1703859,
+    "missions_per_km2": 12.886018
+   },
+   {
+    "id": "LAO.17_1",
+    "country": "laos",
+    "admin_name": "X\u00e9kong",
+    "area_km2": 8365.514,
+    "missions": 87931,
+    "weapons": 910347,
+    "missions_per_km2": 10.511129
+   },
+   {
+    "id": "LAO.11_1",
+    "country": "laos",
+    "admin_name": "Saravan",
+    "area_km2": 10179.771,
+    "missions": 88540,
+    "weapons": 1267286,
+    "missions_per_km2": 8.697642
+   },
+   {
+    "id": "LAO.1_1",
+    "country": "laos",
+    "admin_name": "Attapu",
+    "area_km2": 9438.992,
+    "missions": 70772,
+    "weapons": 788530,
+    "missions_per_km2": 7.497834
+   },
+   {
+    "id": "LAO.5_1",
+    "country": "laos",
+    "admin_name": "Houaphan",
+    "area_km2": 17355.163,
+    "missions": 33009,
+    "weapons": 221405,
+    "missions_per_km2": 1.90197
+   },
+   {
+    "id": "LAO.16_1",
+    "country": "laos",
+    "admin_name": "Xais\u00f4mboun",
+    "area_km2": 7736.562,
+    "missions": 12829,
+    "weapons": 183635,
+    "missions_per_km2": 1.65823
+   },
+   {
+    "id": "LAO.4_1",
+    "country": "laos",
+    "admin_name": "Champasak",
+    "area_km2": 14854.506,
+    "missions": 15280,
+    "weapons": 333287,
+    "missions_per_km2": 1.028644
+   },
+   {
+    "id": "LAO.3_1",
+    "country": "laos",
+    "admin_name": "Bolikhamxai",
+    "area_km2": 15835.151,
+    "missions": 11378,
+    "weapons": 65516,
+    "missions_per_km2": 0.718528
+   },
+   {
+    "id": "LAO.8_1",
+    "country": "laos",
+    "admin_name": "Louangphrabang",
+    "area_km2": 19961.186,
+    "missions": 13199,
+    "weapons": 180506,
+    "missions_per_km2": 0.661233
+   },
+   {
+    "id": "LAO.10_1",
+    "country": "laos",
+    "admin_name": "Ph\u00f4ngsali",
+    "area_km2": 15338.343,
+    "missions": 4700,
+    "weapons": 26551,
+    "missions_per_km2": 0.306422
+   },
+   {
+    "id": "LAO.9_1",
+    "country": "laos",
+    "admin_name": "Oud\u00f4mxai",
+    "area_km2": 11772.219,
+    "missions": 1323,
+    "weapons": 10669,
+    "missions_per_km2": 0.112383
+   },
+   {
+    "id": "LAO.14_1",
+    "country": "laos",
+    "admin_name": "Vientiane",
+    "area_km2": 12523.211,
+    "missions": 1088,
+    "weapons": 30471,
+    "missions_per_km2": 0.086879
+   },
+   {
+    "id": "LAO.15_1",
+    "country": "laos",
+    "admin_name": "Xaignabouri",
+    "area_km2": 15608.314,
+    "missions": 737,
+    "weapons": 3347,
+    "missions_per_km2": 0.047218
+   },
+   {
+    "id": "LAO.2_1",
+    "country": "laos",
+    "admin_name": "Bokeo",
+    "area_km2": 6857.417,
+    "missions": 294,
+    "weapons": 1008,
+    "missions_per_km2": 0.042873
+   },
+   {
+    "id": "LAO.13_1",
+    "country": "laos",
+    "admin_name": "Vientiane[prefecture]",
+    "area_km2": 3618.971,
+    "missions": 140,
+    "weapons": 61,
+    "missions_per_km2": 0.038685
+   },
+   {
+    "id": "LAO.7_1",
+    "country": "laos",
+    "admin_name": "LouangNamtha",
+    "area_km2": 9793.587,
+    "missions": 75,
+    "weapons": 608,
+    "missions_per_km2": 0.007658
+   },
+   {
+    "id": "VNM.50_1",
+    "country": "vietnam",
+    "admin_name": "Qu\u1ea3ngTr\u1ecb",
+    "area_km2": 4613.474,
+    "missions": 252797,
+    "weapons": 3701340,
+    "missions_per_km2": 54.795361
+   },
+   {
+    "id": "VNM.9_1",
+    "country": "vietnam",
+    "admin_name": "B\u00ecnhD\u01b0\u01a1ng",
+    "area_km2": 2692.558,
+    "missions": 79365,
+    "weapons": 942023,
+    "missions_per_km2": 29.475689
+   },
+   {
+    "id": "VNM.46_1",
+    "country": "vietnam",
+    "admin_name": "Qu\u1ea3ngB\u00ecnh",
+    "area_km2": 7978.86,
+    "missions": 197045,
+    "weapons": 1664078,
+    "missions_per_km2": 24.695885
+   },
+   {
+    "id": "VNM.53_1",
+    "country": "vietnam",
+    "admin_name": "T\u00e2yNinh",
+    "area_km2": 4034.884,
+    "missions": 96437,
+    "weapons": 1406314,
+    "missions_per_km2": 23.900808
+   },
+   {
+    "id": "VNM.19_1",
+    "country": "vietnam",
+    "admin_name": "\u0110\u00e0N\u1eb5ng",
+    "area_km2": 982.471,
+    "missions": 23173,
+    "weapons": 178506,
+    "missions_per_km2": 23.586451
+   },
+   {
+    "id": "VNM.54_1",
+    "country": "vietnam",
+    "admin_name": "Th\u1eebaThi\u00eanHu\u1ebf",
+    "area_km2": 5024.185,
+    "missions": 117302,
+    "weapons": 1468856,
+    "missions_per_km2": 23.34747
+   },
+   {
+    "id": "VNM.25_1",
+    "country": "vietnam",
+    "admin_name": "H\u1ed3Ch\u00edMinh",
+    "area_km2": 2109.03,
+    "missions": 48581,
+    "weapons": 550474,
+    "missions_per_km2": 23.034763
+   },
+   {
+    "id": "VNM.58_1",
+    "country": "vietnam",
+    "admin_name": "Ti\u1ec1nGiang",
+    "area_km2": 2405.389,
+    "missions": 45069,
+    "weapons": 385857,
+    "missions_per_km2": 18.736675
+   },
+   {
+    "id": "VNM.47_1",
+    "country": "vietnam",
+    "admin_name": "Qu\u1ea3ngNam",
+    "area_km2": 10573.26,
+    "missions": 176777,
+    "weapons": 1809639,
+    "missions_per_km2": 16.719253
+   },
+   {
+    "id": "VNM.29_1",
+    "country": "vietnam",
+    "admin_name": "H\u00e0T\u0129nh",
+    "area_km2": 5984.105,
+    "missions": 95176,
+    "weapons": 532810,
+    "missions_per_km2": 15.9048
+   },
+   {
+    "id": "VNM.48_1",
+    "country": "vietnam",
+    "admin_name": "Qu\u1ea3ngNg\u00e3i",
+    "area_km2": 5163.86,
+    "missions": 75440,
+    "weapons": 744040,
+    "missions_per_km2": 14.609227
+   },
+   {
+    "id": "VNM.6_1",
+    "country": "vietnam",
+    "admin_name": "B\u1ebfnTre",
+    "area_km2": 2339.527,
+    "missions": 32674,
+    "weapons": 251241,
+    "missions_per_km2": 13.966074
+   },
+   {
+    "id": "VNM.39_1",
+    "country": "vietnam",
+    "admin_name": "LongAn",
+    "area_km2": 4489.99,
+    "missions": 59415,
+    "weapons": 549900,
+    "missions_per_km2": 13.232769
+   },
+   {
+    "id": "VNM.10_1",
+    "country": "vietnam",
+    "admin_name": "B\u00ecnhPh\u01b0\u1edbc",
+    "area_km2": 6867.033,
+    "missions": 85791,
+    "weapons": 1189982,
+    "missions_per_km2": 12.493168
+   },
+   {
+    "id": "VNM.7_1",
+    "country": "vietnam",
+    "admin_name": "B\u00e0R\u1ecba-V\u0169ngT\u00e0u",
+    "area_km2": 1906.086,
+    "missions": 21153,
+    "weapons": 186365,
+    "missions_per_km2": 11.097608
+   },
+   {
+    "id": "VNM.8_1",
+    "country": "vietnam",
+    "admin_name": "B\u00ecnh\u0110\u1ecbnh",
+    "area_km2": 6065.657,
+    "missions": 58744,
+    "weapons": 591937,
+    "missions_per_km2": 9.684689
+   },
+   {
+    "id": "VNM.17_1",
+    "country": "vietnam",
+    "admin_name": "\u0110\u1ed3ngNai",
+    "area_km2": 5862.206,
+    "missions": 56296,
+    "weapons": 551127,
+    "missions_per_km2": 9.603212
+   },
+   {
+    "id": "VNM.24_1",
+    "country": "vietnam",
+    "admin_name": "H\u1eaduGiang",
+    "area_km2": 1622.648,
+    "missions": 14247,
+    "weapons": 162824,
+    "missions_per_km2": 8.780093
+   },
+   {
+    "id": "VNM.61_1",
+    "country": "vietnam",
+    "admin_name": "V\u0129nhLong",
+    "area_km2": 1524.661,
+    "missions": 13120,
+    "weapons": 141195,
+    "missions_per_km2": 8.60519
+   },
+   {
+    "id": "VNM.34_1",
+    "country": "vietnam",
+    "admin_name": "KonTum",
+    "area_km2": 9649.317,
+    "missions": 80949,
+    "weapons": 1511519,
+    "missions_per_km2": 8.389091
+   },
+   {
+    "id": "VNM.59_1",
+    "country": "vietnam",
+    "admin_name": "Tr\u00e0Vinh",
+    "area_km2": 2324.331,
+    "missions": 19126,
+    "weapons": 171175,
+    "missions_per_km2": 8.228604
+   },
+   {
+    "id": "VNM.12_1",
+    "country": "vietnam",
+    "admin_name": "C\u1ea7nTh\u01a1",
+    "area_km2": 1439.225,
+    "missions": 9226,
+    "weapons": 115406,
+    "missions_per_km2": 6.410394
+   },
+   {
+    "id": "VNM.18_1",
+    "country": "vietnam",
+    "admin_name": "\u0110\u1ed3ngTh\u00e1p",
+    "area_km2": 3388.73,
+    "missions": 20168,
+    "weapons": 171863,
+    "missions_per_km2": 5.951492
+   },
+   {
+    "id": "VNM.1_1",
+    "country": "vietnam",
+    "admin_name": "AnGiang",
+    "area_km2": 3525.245,
+    "missions": 17986,
+    "weapons": 148043,
+    "missions_per_km2": 5.102056
+   },
+   {
+    "id": "VNM.45_1",
+    "country": "vietnam",
+    "admin_name": "Ph\u00faY\u00ean",
+    "area_km2": 5030.941,
+    "missions": 24852,
+    "weapons": 209250,
+    "missions_per_km2": 4.939831
+   },
+   {
+    "id": "VNM.13_1",
+    "country": "vietnam",
+    "admin_name": "C\u00e0Mau",
+    "area_km2": 5167.496,
+    "missions": 24564,
+    "weapons": 170316,
+    "missions_per_km2": 4.75356
+   },
+   {
+    "id": "VNM.43_1",
+    "country": "vietnam",
+    "admin_name": "NinhThu\u1eadn",
+    "area_km2": 3360.799,
+    "missions": 15487,
+    "weapons": 168223,
+    "missions_per_km2": 4.60813
+   },
+   {
+    "id": "VNM.33_1",
+    "country": "vietnam",
+    "admin_name": "Ki\u00eanGiang",
+    "area_km2": 6287.005,
+    "missions": 28664,
+    "weapons": 261182,
+    "missions_per_km2": 4.559246
+   },
+   {
+    "id": "VNM.23_1",
+    "country": "vietnam",
+    "admin_name": "H\u1ea3iPh\u00f2ng",
+    "area_km2": 1399.515,
+    "missions": 6042,
+    "weapons": 45335,
+    "missions_per_km2": 4.317209
+   },
+   {
+    "id": "VNM.21_1",
+    "country": "vietnam",
+    "admin_name": "GiaLai",
+    "area_km2": 15517.263,
+    "missions": 63690,
+    "weapons": 739564,
+    "missions_per_km2": 4.104461
+   },
+   {
+    "id": "VNM.41_1",
+    "country": "vietnam",
+    "admin_name": "Ngh\u1ec7An",
+    "area_km2": 16475.131,
+    "missions": 66451,
+    "weapons": 409581,
+    "missions_per_km2": 4.033413
+   },
+   {
+    "id": "VNM.32_1",
+    "country": "vietnam",
+    "admin_name": "Kh\u00e1nhH\u00f2a",
+    "area_km2": 4840.228,
+    "missions": 19269,
+    "weapons": 207815,
+    "missions_per_km2": 3.981011
+   },
+   {
+    "id": "VNM.51_1",
+    "country": "vietnam",
+    "admin_name": "S\u00f3cTr\u0103ng",
+    "area_km2": 3282.332,
+    "missions": 12587,
+    "weapons": 111301,
+    "missions_per_km2": 3.834773
+   },
+   {
+    "id": "VNM.11_1",
+    "country": "vietnam",
+    "admin_name": "B\u00ecnhThu\u1eadn",
+    "area_km2": 7944.286,
+    "missions": 29858,
+    "weapons": 283362,
+    "missions_per_km2": 3.758425
+   },
+   {
+    "id": "VNM.2_1",
+    "country": "vietnam",
+    "admin_name": "B\u1ea1cLi\u00eau",
+    "area_km2": 2479.117,
+    "missions": 8621,
+    "weapons": 85432,
+    "missions_per_km2": 3.477448
+   },
+   {
+    "id": "VNM.40_1",
+    "country": "vietnam",
+    "admin_name": "Nam\u0110\u1ecbnh",
+    "area_km2": 1587.094,
+    "missions": 5131,
+    "weapons": 37462,
+    "missions_per_km2": 3.232953
+   },
+   {
+    "id": "VNM.42_1",
+    "country": "vietnam",
+    "admin_name": "NinhB\u00ecnh",
+    "area_km2": 1344.006,
+    "missions": 4115,
+    "weapons": 26720,
+    "missions_per_km2": 3.061743
+   },
+   {
+    "id": "VNM.57_1",
+    "country": "vietnam",
+    "admin_name": "ThanhH\u00f3a",
+    "area_km2": 11105.498,
+    "missions": 33638,
+    "weapons": 241430,
+    "missions_per_km2": 3.02895
+   },
+   {
+    "id": "VNM.16_1",
+    "country": "vietnam",
+    "admin_name": "\u0110\u1eafkN\u00f4ng",
+    "area_km2": 6509.953,
+    "missions": 13796,
+    "weapons": 164064,
+    "missions_per_km2": 2.119217
+   },
+   {
+    "id": "VNM.28_1",
+    "country": "vietnam",
+    "admin_name": "H\u00e0Nam",
+    "area_km2": 862.361,
+    "missions": 1559,
+    "weapons": 7537,
+    "missions_per_km2": 1.807828
+   },
+   {
+    "id": "VNM.55_1",
+    "country": "vietnam",
+    "admin_name": "Th\u00e1iB\u00ecnh",
+    "area_km2": 1612.089,
+    "missions": 2822,
+    "weapons": 25643,
+    "missions_per_km2": 1.750524
+   },
+   {
+    "id": "VNM.27_1",
+    "country": "vietnam",
+    "admin_name": "H\u00e0N\u1ed9i",
+    "area_km2": 3356.898,
+    "missions": 5551,
+    "weapons": 71160,
+    "missions_per_km2": 1.65361
+   },
+   {
+    "id": "VNM.22_1",
+    "country": "vietnam",
+    "admin_name": "H\u1ea3iD\u01b0\u01a1ng",
+    "area_km2": 1670.129,
+    "missions": 2383,
+    "weapons": 10353,
+    "missions_per_km2": 1.426836
+   },
+   {
+    "id": "VNM.15_1",
+    "country": "vietnam",
+    "admin_name": "\u0110\u1eafkL\u1eafk",
+    "area_km2": 13026.1,
+    "missions": 18155,
+    "weapons": 159724,
+    "missions_per_km2": 1.39374
+   },
+   {
+    "id": "VNM.37_1",
+    "country": "vietnam",
+    "admin_name": "L\u00e2m\u0110\u1ed3ng",
+    "area_km2": 9785.737,
+    "missions": 12358,
+    "weapons": 93684,
+    "missions_per_km2": 1.262858
+   },
+   {
+    "id": "VNM.3_1",
+    "country": "vietnam",
+    "admin_name": "B\u1eafcGiang",
+    "area_km2": 3893.289,
+    "missions": 4145,
+    "weapons": 29565,
+    "missions_per_km2": 1.064653
+   },
+   {
+    "id": "VNM.49_1",
+    "country": "vietnam",
+    "admin_name": "Qu\u1ea3ngNinh",
+    "area_km2": 5986.851,
+    "missions": 5955,
+    "weapons": 39838,
+    "missions_per_km2": 0.99468
+   },
+   {
+    "id": "VNM.56_1",
+    "country": "vietnam",
+    "admin_name": "Th\u00e1iNguy\u00ean",
+    "area_km2": 3522.586,
+    "missions": 2683,
+    "weapons": 23883,
+    "missions_per_km2": 0.761656
+   },
+   {
+    "id": "VNM.31_1",
+    "country": "vietnam",
+    "admin_name": "H\u01b0ngY\u00ean",
+    "area_km2": 926.563,
+    "missions": 602,
+    "weapons": 2182,
+    "missions_per_km2": 0.649713
+   },
+   {
+    "id": "VNM.63_1",
+    "country": "vietnam",
+    "admin_name": "Y\u00eanB\u00e1i",
+    "area_km2": 6887.501,
+    "missions": 4311,
+    "weapons": 20669,
+    "missions_per_km2": 0.625916
+   },
+   {
+    "id": "VNM.44_1",
+    "country": "vietnam",
+    "admin_name": "Ph\u00faTh\u1ecd",
+    "area_km2": 3537.28,
+    "missions": 2202,
+    "weapons": 10785,
+    "missions_per_km2": 0.622512
+   },
+   {
+    "id": "VNM.5_1",
+    "country": "vietnam",
+    "admin_name": "B\u1eafcNinh",
+    "area_km2": 821.162,
+    "missions": 481,
+    "weapons": 2692,
+    "missions_per_km2": 0.585755
+   },
+   {
+    "id": "VNM.62_1",
+    "country": "vietnam",
+    "admin_name": "V\u0129nhPh\u00fac",
+    "area_km2": 1230.622,
+    "missions": 616,
+    "weapons": 3737,
+    "missions_per_km2": 0.50056
+   },
+   {
+    "id": "VNM.52_1",
+    "country": "vietnam",
+    "admin_name": "S\u01a1nLa",
+    "area_km2": 14114.604,
+    "missions": 5657,
+    "weapons": 29893,
+    "missions_per_km2": 0.400791
+   },
+   {
+    "id": "VNM.20_1",
+    "country": "vietnam",
+    "admin_name": "\u0110i\u1ec7nBi\u00ean",
+    "area_km2": 9502.415,
+    "missions": 2761,
+    "weapons": 18935,
+    "missions_per_km2": 0.290558
+   },
+   {
+    "id": "VNM.30_1",
+    "country": "vietnam",
+    "admin_name": "Ho\u00e0B\u00ecnh",
+    "area_km2": 4578.796,
+    "missions": 1172,
+    "weapons": 5702,
+    "missions_per_km2": 0.255962
+   },
+   {
+    "id": "VNM.35_1",
+    "country": "vietnam",
+    "admin_name": "L\u1ea1ngS\u01a1n",
+    "area_km2": 8303.509,
+    "missions": 2072,
+    "weapons": 17084,
+    "missions_per_km2": 0.249533
+   },
+   {
+    "id": "VNM.60_1",
+    "country": "vietnam",
+    "admin_name": "Tuy\u00eanQuang",
+    "area_km2": 5866.955,
+    "missions": 988,
+    "weapons": 6110,
+    "missions_per_km2": 0.168401
+   },
+   {
+    "id": "VNM.4_1",
+    "country": "vietnam",
+    "admin_name": "B\u1eafcK\u1ea1n",
+    "area_km2": 4861.846,
+    "missions": 265,
+    "weapons": 3130,
+    "missions_per_km2": 0.054506
+   },
+   {
+    "id": "VNM.38_1",
+    "country": "vietnam",
+    "admin_name": "L\u00e0oCai",
+    "area_km2": 6359.376,
+    "missions": 312,
+    "weapons": 1027,
+    "missions_per_km2": 0.049061
+   },
+   {
+    "id": "VNM.36_1",
+    "country": "vietnam",
+    "admin_name": "LaiCh\u00e2u",
+    "area_km2": 9062.99,
+    "missions": 105,
+    "weapons": 545,
+    "missions_per_km2": 0.011586
+   },
+   {
+    "id": "VNM.14_1",
+    "country": "vietnam",
+    "admin_name": "CaoB\u1eb1ng",
+    "area_km2": 6696.869,
+    "missions": 32,
+    "weapons": 60,
+    "missions_per_km2": 0.004778
+   },
+   {
+    "id": "VNM.26_1",
+    "country": "vietnam",
+    "admin_name": "H\u00e0Giang",
+    "area_km2": 7920.227,
+    "missions": 21,
+    "weapons": 49,
+    "missions_per_km2": 0.002651
+   }
+  ]
+ },
+ "top5_by_profile_country": {
+  "laos": [
+   {
+    "id": "LAO.12_1",
+    "country": "laos",
+    "admin_name": "Savannakh\u00e9t",
+    "area_km2": 21425.399,
+    "missions": 339205,
+    "weapons": 4282759,
+    "missions_per_km2": 15.831911
+   },
+   {
+    "id": "LAO.6_1",
+    "country": "laos",
+    "admin_name": "Khammouan",
+    "area_km2": 16559.757,
+    "missions": 250971,
+    "weapons": 2230110,
+    "missions_per_km2": 15.155476
+   },
+   {
+    "id": "LAO.18_1",
+    "country": "laos",
+    "admin_name": "Xiangkhoang",
+    "area_km2": 12647.507,
+    "missions": 162976,
+    "weapons": 1703859,
+    "missions_per_km2": 12.886018
+   },
+   {
+    "id": "LAO.17_1",
+    "country": "laos",
+    "admin_name": "X\u00e9kong",
+    "area_km2": 8365.514,
+    "missions": 87931,
+    "weapons": 910347,
+    "missions_per_km2": 10.511129
+   },
+   {
+    "id": "LAO.11_1",
+    "country": "laos",
+    "admin_name": "Saravan",
+    "area_km2": 10179.771,
+    "missions": 88540,
+    "weapons": 1267286,
+    "missions_per_km2": 8.697642
+   }
+  ],
+  "cambodia": [
+   {
+    "id": "KHM.25_1",
+    "country": "cambodia",
+    "admin_name": "TbongKhmum",
+    "area_km2": 4931.079,
+    "missions": 31419,
+    "weapons": 505380,
+    "missions_per_km2": 6.371627
+   },
+   {
+    "id": "KHM.8_1",
+    "country": "cambodia",
+    "admin_name": "K\u00e2ndal",
+    "area_km2": 3254.034,
+    "missions": 16448,
+    "weapons": 433860,
+    "missions_per_km2": 5.054648
+   },
+   {
+    "id": "KHM.23_1",
+    "country": "cambodia",
+    "admin_name": "SvayRieng",
+    "area_km2": 2868.286,
+    "missions": 13708,
+    "weapons": 179871,
+    "missions_per_km2": 4.77916
+   },
+   {
+    "id": "KHM.16_1",
+    "country": "cambodia",
+    "admin_name": "PhnomPenh",
+    "area_km2": 685.058,
+    "missions": 3021,
+    "weapons": 60989,
+    "missions_per_km2": 4.409847
+   },
+   {
+    "id": "KHM.19_1",
+    "country": "cambodia",
+    "admin_name": "PreyV\u00eang",
+    "area_km2": 4766.432,
+    "missions": 14039,
+    "weapons": 266173,
+    "missions_per_km2": 2.94539
+   }
+  ],
+  "vietnam": [
+   {
+    "id": "VNM.50_1",
+    "country": "vietnam",
+    "admin_name": "Qu\u1ea3ngTr\u1ecb",
+    "area_km2": 4613.474,
+    "missions": 252797,
+    "weapons": 3701340,
+    "missions_per_km2": 54.795361
+   },
+   {
+    "id": "VNM.9_1",
+    "country": "vietnam",
+    "admin_name": "B\u00ecnhD\u01b0\u01a1ng",
+    "area_km2": 2692.558,
+    "missions": 79365,
+    "weapons": 942023,
+    "missions_per_km2": 29.475689
+   },
+   {
+    "id": "VNM.46_1",
+    "country": "vietnam",
+    "admin_name": "Qu\u1ea3ngB\u00ecnh",
+    "area_km2": 7978.86,
+    "missions": 197045,
+    "weapons": 1664078,
+    "missions_per_km2": 24.695885
+   },
+   {
+    "id": "VNM.53_1",
+    "country": "vietnam",
+    "admin_name": "T\u00e2yNinh",
+    "area_km2": 4034.884,
+    "missions": 96437,
+    "weapons": 1406314,
+    "missions_per_km2": 23.900808
+   },
+   {
+    "id": "VNM.19_1",
+    "country": "vietnam",
+    "admin_name": "\u0110\u00e0N\u1eb5ng",
+    "area_km2": 982.471,
+    "missions": 23173,
+    "weapons": 178506,
+    "missions_per_km2": 23.586451
+   }
+  ]
+ },
+ "elapsed_s": 201.9
+}
