@@ -66,7 +66,18 @@
   .legend .bar{height:10px;border-radius:2px;border:1px solid var(--line)}
   .legend .ends{display:flex;justify-content:space-between;font-family:var(--mono);font-size:10px;color:var(--faint);margin-top:3px}
   .legend .nodata{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--dim);margin-top:6px}
-  .legend .nodata i{width:11px;height:11px;background:#1a212c;border:1px solid #2c3644;display:inline-block;border-radius:2px}
+  .legend .nodata i{width:11px;height:11px;background:repeating-linear-gradient(45deg,#232b36 0 4px,#55657a 4px 5px);border:1px solid #2c3644;display:inline-block;border-radius:2px}
+  .legendtitle{font-size:11px;color:var(--dim);line-height:1.45;margin-bottom:5px}
+  .lrow{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--dim);margin-top:3px;line-height:1.35}
+  .lrow i{width:11px;height:11px;border:1px solid #2c3644;display:inline-block;border-radius:2px;flex:none}
+  .lrow i.hatch{background:repeating-linear-gradient(45deg,#232b36 0 4px,#55657a 4px 5px)}
+  #attribution{border-top:1px solid var(--line);padding-top:6px}
+  .layer small{display:block;color:var(--faint);font-family:var(--mono);font-size:10px;margin-top:2px}
+  .layer:disabled{opacity:.55;cursor:default}
+  ol.ranks li.grouphead{display:block;cursor:default;font-family:var(--mono);font-size:10px;letter-spacing:.4px;color:var(--faint);padding:9px 6px 4px;border-bottom:none}
+  ol.ranks li.grouphead:hover{background:transparent}
+  .comp .track.missingtrack{background:repeating-linear-gradient(45deg,#232b36 0 4px,#3a475a 4px 5px)}
+  #layerbanner{bottom:52px}
   .ranknote{font-size:11px;color:var(--faint);line-height:1.45;margin:-2px 0 8px}
   .ranknote b{color:var(--amber);font-weight:600}
   ol.ranks{list-style:none;margin:0;padding:0}
@@ -125,14 +136,16 @@
 <header>
   <div>
     <div class="brand">Clear<b>Field</b></div>
-    <div class="tagline">Which bombed land gets surveyed first — ranked from strike records, crater evidence, and who lives there.</div>
+    <div class="tagline">Which bombed land gets surveyed first - ranked from strike records, crater evidence, and who lives there. Missing data is shown as missing, never as safe.</div>
   </div>
   <div class="chips" id="chips">
     <span class="chip" id="chip-api"><span class="dot"></span>API …</span>
     <span class="chip" id="chip-zones">zones <b>—</b></span>
+    <span class="chip" id="chip-ranked">officially ranked <b>—</b></span>
     <span class="chip" id="chip-exp">exposure <b>—</b></span>
-    <span class="chip" id="chip-crater">craters <b>—</b></span>
-    <span class="chip warn" id="chip-thor">strike density <b>THOR pending</b></span>
+    <span class="chip" id="chip-crater">crater evidence <b>—</b></span>
+    <span class="chip" id="chip-thor">strike records <b>—</b></span>
+    <span class="chip" id="chip-top">top ranked <b>—</b></span>
     <span class="chip" id="chip-finds">finds this session <b>0</b></span>
   </div>
 </header>
@@ -143,9 +156,11 @@
     <h2>MAP LAYER</h2>
     <div class="layers" id="layers"></div>
     <div class="legend">
-      <div class="steps" id="legendbar" aria-hidden="true"></div>
-      <div class="ends"><span id="legendlo">low</span><span id="legendmd"></span><span id="legendhi">high</span></div>
-      <div class="nodata"><i></i> no data for this zone (not the same as zero)</div>
+      <div class="legendtitle" id="legendtitle"></div>
+      <div id="legendrows"></div>
+      <div class="nodata" id="legendnodata"><i></i> hatched = no data for this zone - not zero, not low, not safe</div>
+      <div class="src" id="legendnote"></div>
+      <div class="src" id="attribution"></div>
     </div>
     <h2>FILTER</h2>
     <label class="f" for="surveyed">Surveyed status</label>
@@ -157,14 +172,14 @@
     </select>
     <label class="f" for="q">Find a province</label>
     <input type="text" id="q" placeholder="e.g. Savannakhet or KHM.25_1" autocomplete="off">
-    <h2 id="ranktitle">EVIDENCE RANKING</h2>
+    <h2 id="ranktitle">ZONES BY RANKABILITY</h2>
     <p class="ranknote" id="ranknote"></p>
     <ol class="ranks" id="ranks"></ol>
     <details class="help">
       <summary>How to read this map</summary>
       <div class="body">
-        <p><b>Color = one score ingredient at a time.</b> Switch layers above. Darker grey means <b>no data</b> — that is not zero. A real zero gets the lightest color step.</p>
-        <p><b>Official priority needs all three ingredients</b> multiplied together: THOR strike density × crater evidence × exposure. Strike density is not seeded yet, so today's list is an evidence preview, never a clearance order.</p>
+        <p>Color shows one score ingredient at a time; switch layers above. Hatched grey means NO DATA - that is not zero and not safe. Paler/darker steps are amounts of recorded evidence, never a danger or safety rating.</p>
+        <p>Official priority needs all three ingredients: each is scaled 0-1 within its country as log(1+x)/log(1+country max), then multiplied (x1.0 unsurveyed, x0.25 surveyed, x0.0 cleared) by pipelines/scoring.py. If any ingredient is missing the zone is unscorable - never scored as 0. The chips at the top show how many zones in the selected country are officially ranked right now, computed from the loaded zone list. A preview order on an evidence layer is never a clearance order.</p>
         <p><b>◆</b> marks the demo province. Colored dots are field finds recorded in this browser (green = saved to the database, amber = queued offline).</p>
         <p>Shortcuts: <kbd>/</kbd> search · <kbd>←</kbd><kbd>→</kbd><kbd>↑</kbd><kbd>↓</kbd> pan (map focused) · <kbd>+</kbd>/<kbd>−</kbd> zoom · <kbd>Esc</kbd> cancel find mode. Every zone is also reachable from the ranking list — the map needs no mouse.</p>
       </div>
@@ -182,6 +197,7 @@
       <button id="btn-findmode">Record a find</button>
     </div>
     <div id="tooltip"></div>
+    <div class="banner" id="layerbanner"></div>
     <div class="banner" id="banner"></div>
     <div id="coords">— , —</div>
   </div>
@@ -191,13 +207,26 @@
 "use strict";
 const API = "";  // same origin: the backend serves this page at /
 const LAYERS = {
-  exposure:       {label:"Exposure (OSM)",   unit:"features/km²", stops:["#0e2a27","#17655a","#2fb3a3","#a9e8c9"]},
-  crater_evidence:{label:"Crater evidence", unit:"craters/km²",  stops:["#2e1a07","#8a5a17","#e8a33d","#ffe3ae"]},
-  strike_density: {label:"Strike density",  unit:"missions/km²", stops:["#2e0f08","#8f3018","#e4572e","#ffbfa8"]},
-  priority_score: {label:"Priority score",  unit:"score",        stops:["#2e0f08","#8f3018","#e4572e","#ffbfa8"]},
+  official:       {label:"Official priority", kind:"rank", stops:["#e8a33d","#e8a33d","#e8a33d","#e8a33d"]},
+  strike_density: {label:"Strike records (THOR)", kind:"raw-stepped", field:"strike_density", unit:"recorded missions/km²", breaks:[0.01,0.1,1,5,15], stops:["#2e0f08","#8f3018","#e4572e","#ffbfa8"]},
+  crater_evidence:{label:"Crater evidence", kind:"norm-stepped", field:"crater_evidence", unit:"craters/km²", normBreaks:[0.01,0.10,0.50], stops:["#2e1a07","#8a5a17","#e8a33d","#ffe3ae"]},
+  exposure:       {label:"Exposure (OSM)", kind:"raw-stepped", field:"exposure", unit:"OSM features/km²", breaks:[0.5,1,3,10,30], stops:["#0e2a27","#17655a","#2fb3a3","#a9e8c9"]},
+  coverage:       {label:"Data coverage", kind:"mask", stops:["#0072B2","#0072B2","#0072B2","#0072B2"]},
 };
+const COMPONENTS = ["strike_density","crater_evidence","exposure"];
+const COMP_SHORT = {strike_density:"strike records", crater_evidence:"crater evidence", exposure:"exposure"};
+const COMP_TINY = {strike_density:"strike", crater_evidence:"crater", exposure:"exposure"};
+const COMP_META = {
+  strike_density:{label:"Strike records (THOR)", unit:"recorded missions/km²"},
+  crater_evidence:{label:"Crater evidence (imagery)", unit:"craters/km²"},
+  exposure:{label:"Exposure (people & livelihoods)", unit:"OSM features/km²"},
+};
+// Mirror of pipelines/scoring.py SURVEYED_FACTOR (display only; scoring.py writes scores).
+const SURVEYED_FACTOR = {unsurveyed:1.0, surveyed:0.25, cleared:0.0};
+// Okabe-Ito coverage palette keyed by the exact missing-component mask.
+const MASK_COLORS = {"":"#0072B2","crater_evidence":"#E69F00","exposure":"#CC79A7","strike_density":"#F0E442","crater_evidence,exposure":"#999999","strike_density,crater_evidence":"#56B4E9","strike_density,exposure":"#D55E00"};
 const S = {
-  country:"laos", profiles:{}, profile:null, zones:[], layer:"exposure",
+  country:"laos", profiles:{}, profile:null, zones:[], layer:"official", total:null, countryMax:{},
   surveyed:"all", query:"", selectedId:null, hoverId:null,
   view:{scale:1, tx:0, ty:0}, fitDone:false, findMode:false,
   finds: JSON.parse(localStorage.getItem("clearfield-finds-v1")||"[]"),
@@ -214,20 +243,104 @@ function ramp(stops,t){
   const a = hexRgb(stops[i]), b = hexRgb(stops[i+1]);
   return `rgb(${a.map((v,k)=>Math.round(v+(b[k]-v)*f)).join(",")})`;
 }
-function layerStats(){
-  const vals = S.zones.map(z=>z[S.layer]).filter(v=>v!=null && isFinite(v));
-  if(!vals.length) return null;
-  return {min:Math.min(...vals), max:Math.max(...vals), n:vals.length};
+const missingFields = z => COMPONENTS.filter(f=>z[f]==null);
+const maskKey = z => missingFields(z).join(",");
+function maskLabel(z){
+  const m = missingFields(z);
+  return m.length===0 ? "All 3 components - rankable" : "Missing " + m.map(f=>COMP_SHORT[f]).join(", ");
 }
-function tOf(v, st){
-  if(v==null || !st) return null;
-  const lo = Math.log1p(st.min), hi = Math.log1p(st.max);
-  return hi>lo ? (Math.log1p(v)-lo)/(hi-lo) : 0.5;
+function maskShort(z){
+  const m = missingFields(z);
+  return m.length===0 ? "all 3 present" : "no " + m.map(f=>COMP_TINY[f]).join(", no ");
+}
+function unscorableLine(z){
+  const m = missingFields(z);
+  if(!m.length) return "Unscorable: awaiting a scoring run. The score needs all three components and is never imputed from partial data.";
+  return `Unscorable: no ${m.map(f=>COMP_SHORT[f]).join(", no ")}. The score needs all three components and is never imputed from partial data.`;
+}
+// Country maxima are recomputed client-side from the loaded /zones payload once per
+// loadCountry; correctness requires the full country payload (see total guard in loadCountry).
+function computeCountryMax(){
+  S.countryMax = {};
+  for(const f of COMPONENTS){
+    const vals = S.zones.map(z=>z[f]).filter(v=>v!=null && isFinite(v));
+    S.countryMax[f] = vals.length ? Math.max(...vals) : null;
+  }
+}
+function normOf(v, field){  // scoring norm: log1p(x)/log1p(country max), as in pipelines/scoring.py
+  const mx = S.countryMax[field];
+  if(v==null || mx==null) return null;
+  const d = Math.log1p(mx);
+  return d>0 ? Math.log1p(v)/d : 0;
+}
+const fmtNorm = n => n==null ? "—" : (n>=0.01 ? n.toFixed(3) : n.toPrecision(3));
+const partialPayload = () => S.total!=null && S.zones.length!==S.total;
+function classIndex(z){
+  const L = LAYERS[S.layer];
+  if(L.kind==="raw-stepped"){
+    const v = z[L.field]; if(v==null) return null;
+    let i = 0; while(i<L.breaks.length && v>L.breaks[i]) i++;
+    return i;
+  }
+  if(L.kind==="norm-stepped"){
+    const n = normOf(z[L.field], L.field); if(n==null) return null;
+    let i = 0; while(i<L.normBreaks.length && n>L.normBreaks[i]) i++;
+    return i;
+  }
+  return null;
+}
+function rangeLabel(br, i, fmtBr){
+  const f = fmtBr || (x=>String(x));
+  if(i===0) return "≤"+f(br[0]);
+  if(i===br.length) return ">"+f(br[br.length-1]);
+  return ">"+f(br[i-1])+"-"+f(br[i]);
+}
+function fillFor(z){  // returns a color string, or null for the NULL hatch treatment
+  const L = LAYERS[S.layer];
+  if(L.kind==="rank") return z.priority_rank!=null ? "#e8a33d" : null;
+  if(L.kind==="mask"){
+    const k = maskKey(z);
+    return Object.prototype.hasOwnProperty.call(MASK_COLORS,k) ? MASK_COLORS[k] : null;
+  }
+  const i = classIndex(z);
+  if(i==null) return null;
+  if(L.kind==="raw-stepped") return ramp(L.stops, i/5);
+  return ramp(L.stops, [0.25,0.50,0.75,1.00][i]);
+}
+function layerDataCount(){
+  const L = LAYERS[S.layer];
+  if(L.kind==="rank") return S.zones.filter(z=>z.priority_rank!=null).length;
+  if(L.kind==="mask") return S.zones.filter(z=>missingFields(z).length===0).length;
+  return S.zones.filter(z=>z[L.field]!=null).length;
+}
+let hatchPat = null;
+function makeHatch(){
+  if(hatchPat) return hatchPat;
+  const tile = document.createElement("canvas"); tile.width = tile.height = 7;
+  const g = tile.getContext("2d");
+  g.strokeStyle = "#55657a"; g.lineWidth = 1.5;
+  g.beginPath();
+  g.moveTo(-1,8); g.lineTo(8,-1);
+  g.moveTo(-1,1); g.lineTo(1,-1);
+  g.moveTo(6,8); g.lineTo(8,6);
+  g.stroke();
+  hatchPat = ctx.createPattern(tile,"repeat");
+  return hatchPat;
+}
+function removedLayerStats(){
+  // removed: display paths use stepped classes (map) and the scoring norm (inspector bars)
+  return null;
+  // (no min-max stretch anywhere in display paths)
+}
+function removedTOf(){
+  return null;
+  // (scoring norm lives in normOf above)
+  // (deleted)
 }
 function percentile(z, field){
   const vals = S.zones.map(x=>x[field]).filter(v=>v!=null);
   if(z[field]==null || !vals.length) return null;
-  return vals.filter(v=>v<=z[field]).length/vals.length;
+  return vals.filter(v=>v<z[field]).length/vals.length;  // strictly below: "higher than x%" must never read 100% or count ties
 }
 // --- geometry: simple equirectangular projection, canvas coords in degrees
 let cosRef = Math.cos(16*Math.PI/180);
@@ -250,6 +363,7 @@ function prepZones(){
     z._bbox=[mnx,mny,mxx,mxy]; z._c=[(mnx+mxx)/2,(mny+mxy)/2];
   }
   if(lats.length) cosRef = Math.cos((lats.reduce((a,b)=>a+b,0)/lats.length)*Math.PI/180);
+  for(const z of S.zones) z._path = zonePath(z);  // cache Path2D once, after cosRef is finalized
 }
 function ringHit(ring, lon, lat){
   let inside=false;
@@ -304,7 +418,7 @@ function zonePath(z){
 }
 function draw(){
   if(!canvas.width) return;
-  const dpr = canvas._dpr||1, st = layerStats(), L = LAYERS[S.layer];
+  const dpr = canvas._dpr||1;
   ctx.setTransform(dpr,0,0,dpr,0,0);
   ctx.fillStyle = "#0a0f14"; ctx.fillRect(0,0,canvas._w,canvas._h);
   ctx.setTransform(dpr*S.view.scale,0,0,dpr*S.view.scale,dpr*S.view.tx,dpr*S.view.ty);
@@ -317,15 +431,20 @@ function draw(){
   const demoId = S.profile && S.profile.demo_zone_id;
   for(const z of S.zones){
     const filtered = (S.surveyed!=="all" && z.surveyed_status!==S.surveyed);
-    const t = tOf(z[S.layer], st), p = zonePath(z);
-    ctx.fillStyle = t==null ? "#1a212c" : ramp(L.stops, t);
+    const fill = fillFor(z), p = z._path || zonePath(z);
+    ctx.globalAlpha = filtered ? 0.18 : 1;
+    if(fill==null){  // NULL: solid base + screen-constant hatch (pattern filled under identity view transform)
+      ctx.fillStyle = "#232b36"; ctx.fill(p);
+      ctx.save(); ctx.clip(p); ctx.setTransform(dpr,0,0,dpr,0,0); ctx.fillStyle = makeHatch(); ctx.fillRect(0,0,canvas._w,canvas._h); ctx.restore();
+    } else { ctx.fillStyle = fill; ctx.fill(p); }
+    if(false){  // legacy duplicate fill below is disabled (fill handled above)
     ctx.globalAlpha = filtered ? 0.18 : 1;
     ctx.fill(p);
-    ctx.globalAlpha = filtered ? 0.35 : 1;
-    ctx.strokeStyle = t==null ? "#2c3644" : "rgba(8,12,17,.65)";
+    } ctx.globalAlpha = filtered ? 0.35 : 1;
+    ctx.strokeStyle = fill==null ? "#5a6a7d" : "rgba(8,12,17,.65)";
     ctx.lineWidth = 0.7/S.view.scale; ctx.stroke(p);
     ctx.globalAlpha = 1;
-    z._path = p;
+    if(S.layer==="official" && z.priority_rank!=null){ const [x,y]=proj(z._c[0],z._c[1]); ctx.fillStyle="#0d1218"; ctx.font=`bold ${12/S.view.scale}px sans-serif`; ctx.textAlign="center"; ctx.textBaseline="middle"; ctx.fillText("#"+z.priority_rank,x,y); }
   }
   // demo province marker (diamond at bbox centre)
   if(demoId){
@@ -350,6 +469,25 @@ function draw(){
 }
 // --- map interaction ---------------------------------------------------------
 let drag=null;
+let rafPending=false;
+function scheduleDraw(){ if(rafPending) return; rafPending=true; requestAnimationFrame(()=>{ rafPending=false; draw(); }); }
+function tooltipHtml(z){
+  const L=LAYERS[S.layer], head=`<b>${esc(z.admin_name||z.id)}</b> <span style="color:var(--faint)">${esc(z.id)}</span>`;
+  let line2="";
+  if(L.kind==="rank"){
+    line2 = z.priority_rank!=null ? `Official rank #${z.priority_rank} - score ${fmt(z.priority_score,6)}` : (missingFields(z).length ? `Not enough data to rank: ${maskShort(z)}` : `Not ranked yet: all 3 present, awaiting a scoring run`);
+    return `${head}<br><span class="tv">${esc(line2)}</span>`;
+  }
+  if(L.kind==="mask"){
+    line2 = "Coverage: " + COMPONENTS.map(f=>`${COMP_TINY[f]} ${z[f]!=null?"✓":"✗"}`).join(" / ");
+  } else {
+    const v=z[L.field];
+    line2 = `${L.label}: ${v==null?"no data":fmt(v)+" "+L.unit}`;
+    if(v!=null && L.kind==="raw-stepped") line2 += ` (class ${rangeLabel(L.breaks, classIndex(z))})`;
+  }
+  const line3 = z.priority_rank!=null ? `Official rank #${z.priority_rank}` : unscorableLine(z).split(". ")[0].replace("Unscorable:","Unscorable:");
+  return `${head}<br><span class="tv">${esc(line2)}</span><br>${esc(line3)}`;
+}
 canvas.addEventListener("pointerdown", e=>{ drag={x:e.offsetX,y:e.offsetY,moved:false}; canvas.setPointerCapture(e.pointerId); });
 canvas.addEventListener("pointermove", e=>{
   const [lon,lat]=toLonLat(e.offsetX,e.offsetY);
@@ -357,17 +495,17 @@ canvas.addEventListener("pointermove", e=>{
   if(drag){
     const dx=e.offsetX-drag.x, dy=e.offsetY-drag.y;
     if(Math.abs(dx)+Math.abs(dy)>3) drag.moved=true;
-    if(drag.moved){ S.view.tx+=dx; S.view.ty+=dy; drag.x=e.offsetX; drag.y=e.offsetY; draw(); }
+    if(drag.moved){ S.view.tx+=dx; S.view.ty+=dy; drag.x=e.offsetX; drag.y=e.offsetY; scheduleDraw(); }
     return;
   }
   const z = zoneAt(lon,lat), tip=$("tooltip");
   S.hoverId = z? z.id : null;
   if(z){
     const L=LAYERS[S.layer];
-    tip.innerHTML = `<b>${esc(z.admin_name||z.id)}</b> <span style="color:var(--faint)">${esc(z.id)}</span><br>${L.label}: <span class="tv">${z[S.layer]==null?"no data":fmt(z[S.layer])+" "+L.unit}</span>`;
+    tip.innerHTML = tooltipHtml(z);
     tip.style.display="block";
     tip.style.left = Math.min(canvas._w-250, e.offsetX+14)+"px"; tip.style.top = (e.offsetY+14)+"px";
-  } else tip.style.display="none";
+  } else tip.style.display="none"; scheduleDraw(); return;  // rAF-throttled; legacy immediate draw below is unreachable
   draw();
 });
 canvas.addEventListener("pointerup", e=>{
@@ -398,16 +536,100 @@ function renderTabs(){
   }).join("");
   document.querySelectorAll("#countrytabs .tab").forEach(b=> b.onclick=()=>loadCountry(b.dataset.c));
 }
+function osmAttribution(){
+  const ex = S.profile && S.profile.osm_extract ? String(S.profile.osm_extract).split("/").pop() : "";
+  if(ex && ex.includes(".")) return `Exposure: (c) OpenStreetMap contributors, available under the Open Database Licence (ODbL 1.0); Geofabrik extract ${ex}.`;
+  return `Exposure has not been computed for ${S.profile?S.profile.name:"this country"} (no OSM extract acquired).`;
+}
+const THOR_FOOTNOTE = "Strike records: USAF THOR historical mission records, 1965-1975, assigned to provinces after Indian 1960 datum correction and B-52 de-duplication (seed provenance and record counts: docs/thor/thor_final_spec.md §9; no weapon-type filter). THOR records intended targets, not verified impacts - more records mean more historical evidence, not more present-day danger.";
+function renderAttribution(){
+  const parts = [osmAttribution()];
+  if(S.layer==="strike_density" || S.layer==="official") parts.push(THOR_FOOTNOTE);
+  $("attribution").textContent = parts.join(" ");
+}
+function updateLayerBanner(){
+  const b = $("layerbanner"); if(!b) return;
+  const ranked = S.zones.filter(z=>z.priority_rank!=null).length;
+  if(S.layer==="official" && S.zones.length && ranked===0){
+    const miss = f => S.zones.filter(z=>z[f]==null).length;
+    b.textContent = S.country==="vietnam"
+      ? `No zone in Vietnam can be officially ranked yet: exposure is missing for all ${miss("exposure")} zones, and crater evidence for ${miss("crater_evidence")}.`
+      : `No zone in ${S.profile?S.profile.name:S.country} can be officially ranked yet.`;
+    b.style.display = "block";
+  } else b.style.display = "none";
+}
+function layerAnnounce(){
+  const L = LAYERS[S.layer], N = S.zones.length, n = layerDataCount();
+  if(L.kind==="rank") announce(`${L.label} layer. ${n} of ${N} zones are officially ranked.`);
+  else if(L.kind==="mask") announce(`Data coverage layer. ${n} of ${N} zones have all three components.`);
+  else announce(`${L.label} layer. ${n} of ${N} zones have data.`);
+}
+function renderLegend(){
+  const L = LAYERS[S.layer], N = S.zones.length, name = S.profile?S.profile.name:S.country;
+  let title = "", rows = [], note = "", showNodata = true;
+  const row = (style,label,cls) => `<div class="lrow"><i ${cls?`class="${cls}"`:`style="background:${style}"`}></i><span>${esc(label)}</span></div>`;
+  if(L.kind==="rank"){
+    const r = S.zones.filter(z=>z.priority_rank!=null).length;
+    title = "Official priority";
+    rows = [row("#e8a33d",`Officially ranked - #1 is surveyed first (${r} zones)`), row(null,`Not enough data to rank (${N-r} zones)`,"hatch")];
+    showNodata = false;
+  } else if(L.kind==="mask"){
+    title = "Data coverage - which score components exist per zone";
+    const present = {};
+    for(const z of S.zones){ const k = maskKey(z); present[k] = (present[k]||0)+1; }
+    rows = Object.keys(present).map(k=>{
+      const sample = S.zones.find(z=>maskKey(z)===k), col = MASK_COLORS[k];
+      return col ? row(col,`${maskLabel(sample)} (${present[k]} zones)`) : row(null,`${maskLabel(sample)} (${present[k]} zones)`,"hatch");
+    });
+    note = "Complete data is not a safety rating - it only means the score can be computed (see Official priority).";
+    showNodata = Object.keys(present).some(k=>!MASK_COLORS[k]);
+  } else if(L.kind==="raw-stepped"){
+    title = S.layer==="strike_density"
+      ? "Strike records (THOR) - recorded missions/km² (fixed classes, same on every country)"
+      : `${L.label} - ${L.unit} (fixed classes, same on every country)`;
+    const counts = [0,0,0,0,0,0];
+    for(const z of S.zones){ const i = classIndex(z); if(i!=null) counts[i]++; }
+    rows = counts.map((c,i)=>row(ramp(L.stops,i/5),`${rangeLabel(L.breaks,i)} ${L.unit} (${c} zones)`));
+    if(S.layer==="strike_density") note = "Lowest class = fewest records. Records are historical mission records (intended targets), not verified impacts.";
+    if(S.layer==="exposure"){
+      const mx = S.countryMax.exposure;
+      if(mx!=null && mx>30){ const top = S.zones.find(z=>z.exposure===mx); note = `Country max is the capital prefecture (${top?(top.admin_name||top.id):""}, ${fmt(mx)} features/km²); most zones sit in the lower classes by design.`; }
+    }
+  } else if(L.kind==="norm-stepped"){
+    const mx = S.countryMax[L.field];
+    title = `Crater evidence - craters/km², scaled within ${name} (of country max${mx!=null?"; "+name+" max "+fmt(mx):""})`;
+    const counts = [0,0,0,0];
+    for(const z of S.zones){ const i = classIndex(z); if(i!=null) counts[i]++; }
+    const rawTicks = mx!=null ? L.normBreaks.map(nb=>Math.expm1(nb*Math.log1p(mx))) : null;
+    rows = counts.map((c,i)=>{
+      const nl = rangeLabel(L.normBreaks,i,x=>x.toFixed(2));
+      const rl = rawTicks ? rangeLabel(rawTicks,i,x=>fmt(x)) : "";
+      return row(ramp(L.stops,[0.25,0.5,0.75,1][i]),`${nl} of country max${rl?" ("+rl+" "+L.unit+")":""} (${c} zones)`);
+    });
+    note = "Crater classes are per-country only: values are not comparable across countries.";
+  }
+  $("legendtitle").textContent = title;
+  $("legendrows").innerHTML = rows.join("");
+  $("legendnote").textContent = note;
+  $("legendnodata").style.display = showNodata ? "flex" : "none";
+}
 function renderLayers(){
-  $("layers").innerHTML = Object.entries(LAYERS).map(([k,L])=>
+  $("layers").innerHTML = Object.entries(LAYERS).map(([k,L])=>{
+    const n = S.zones.length, name = S.profile?S.profile.name:S.country;
+    let sub = "", dis = "";
+    if(k==="crater_evidence" && n) sub = `<small>seeded ${S.zones.filter(z=>z.crater_evidence!=null).length}/${n} in ${esc(name)}</small>`;
+    if(k==="exposure" && n && S.zones.every(z=>z.exposure==null)){ dis = " disabled"; sub = `<small>not seeded for ${esc(name)} (0/${n})</small>`; }
+    return `<button class="layer ${k===S.layer?"on":""}" data-l="${k}"${dis}><span class="sw" style="background:${L.stops[2]}"></span>${L.label}${sub}</button>`;
+  }).join("");
+  if(false) Object.entries(LAYERS).map(([k,L])=>
     `<button class="layer ${k===S.layer?"on":""}" data-l="${k}"><span class="sw" style="background:${L.stops[2]}"></span>${L.label}</button>`).join("");
-  document.querySelectorAll("#layers .layer").forEach(b=> b.onclick=()=>{ S.layer=b.dataset.l; renderLayers(); renderRanks(); draw(); });
-  const L=LAYERS[S.layer], st=layerStats();
+  document.querySelectorAll("#layers .layer").forEach(b=> b.onclick=()=>{ if(b.disabled) return; S.layer=b.dataset.l; renderLayers(); renderRanks(); draw(); layerAnnounce(); });
+  renderLegend(); renderAttribution(); updateLayerBanner(); if(false){ const L=LAYERS[S.layer];
   // Craft R1: stepped swatches, no decorative gradient (map fills are flat per zone)
-  $("legendbar").innerHTML = [0.08,0.28,0.48,0.68,0.88].map(t=>`<i style="background:${ramp(L.stops,t)}"></i>`).join("");
-  $("legendlo").textContent = st? fmt(st.min) : "—";
-  $("legendhi").textContent = st? `${fmt(st.max)} ${L.unit}` : "no data yet";
-  $("legendmd").textContent = st? `${st.n}/${S.zones.length} zones have data (log scale)` : "";
+  // legacy continuous legend removed
+  // (removed)
+  // (removed)
+  }  // end disabled legacy legend block
 }
 function filteredZones(){
   const q=S.query.trim().toLowerCase();
@@ -416,13 +638,54 @@ function filteredZones(){
     (!q || (z.admin_name||"").toLowerCase().includes(q) || z.id.toLowerCase().includes(q)));
 }
 function renderRanks(){
-  const L=LAYERS[S.layer], st=layerStats(), demoId=S.profile&&S.profile.demo_zone_id;
-  $("ranktitle").textContent = S.layer==="priority_score" ? "OFFICIAL PRIORITY RANK" : "EVIDENCE RANKING — "+L.label.toUpperCase();
-  $("ranknote").innerHTML = st==null
-    ? `<b>No ${esc(L.label.toLowerCase())} data yet.</b> Zones cannot be ranked on this layer until it is seeded (strike density needs the THOR ingest).`
-    : (S.layer==="priority_score"
+  const L=LAYERS[S.layer], demoId=S.profile&&S.profile.demo_zone_id, N=S.zones.length, name=S.profile?S.profile.name:S.country;
+  const rankedN=S.zones.filter(z=>z.priority_rank!=null).length;
+  $("ranktitle").textContent="ZONES BY RANKABILITY";
+  if(L.kind==="rank") $("ranknote").textContent=`Official deterministic ranking from pipelines/scoring.py. Only zones with all three components can be ranked: ${rankedN} of ${N} in ${name}. Order inside each not-rankable group is by strike records (THOR), the one component present everywhere - an evidence preview, never an official rank.`;
+  else if(L.kind==="mask") $("ranknote").textContent=`Values shown are ${L.label}. Order inside each group is by strike records (THOR), the one component present everywhere - it is an evidence preview, never an official rank or a clearance order.`;
+  else $("ranknote").textContent=`Values shown are ${L.label}. Order inside each group is by that value - it is an evidence preview, never an official rank or a clearance order.`;
+  const sortField=(L.kind==="rank"||L.kind==="mask")?"strike_density":L.field;
+  const byVal=(a,b)=>{ const av=a[sortField], bv=b[sortField]; if(av==null&&bv==null) return a.id<b.id?-1:1; if(av==null) return 1; if(bv==null) return -1; return bv-av || (a.id<b.id?-1:1); };
+  function groupHeader(k){
+    if(!k) return "NOT RANKABLE - AWAITING A SCORING RUN";
+    return "NOT RANKABLE - NO " + k.split(",").map(f=>COMP_SHORT[f].toUpperCase()).join(", NO ");
+  }
+  const fz=filteredZones();
+  const ranked=fz.filter(z=>z.priority_rank!=null).sort((a,b)=>a.priority_rank-b.priority_rank);
+  const groups=new Map();
+  for(const z of fz.filter(z=>z.priority_rank==null)){ const k=maskKey(z); if(!groups.has(k)) groups.set(k,[]); groups.get(k).push(z); }
+  const groupKeys=[...groups.keys()].sort((a,b)=>{
+    const na=a?a.split(",").length:0, nb=b?b.split(",").length:0;
+    const ha=groupHeader(a), hb=groupHeader(b);
+    return na-nb || (ha<hb?-1:1);
+  });
+  const rowVal=z=>{
+    if(L.kind==="rank") return z.priority_rank!=null ? "score "+fmt(z.priority_score,6) : maskShort(z);
+    if(L.kind==="mask") return maskShort(z);
+    return z[L.field]==null ? "no data" : fmt(z[L.field]);
+  };
+  const rowHtml=z=>`<li data-id="${z.id}" tabindex="0" role="button" aria-label="Select ${esc(z.admin_name||z.id)}" class="${z.id===S.selectedId?"sel":""}"><span class="n">${z.priority_rank!=null?"#"+z.priority_rank:"—"}</span><span class="nm">${esc(z.admin_name||z.id)}${z.id===demoId?'<span class="demo">◆ DEMO</span>':""}<small>${esc(z.id)}</small></span><span class="v">${esc(rowVal(z))}</span></li>`;
+  let html="";
+  if(ranked.length) html+=`<li class="grouphead">OFFICIAL PRIORITY (${ranked.length})</li>`+ranked.map(rowHtml).join("");
+  for(const k of groupKeys){ const g=groups.get(k).slice().sort(byVal); html+=`<li class="grouphead">${esc(groupHeader(k))} (${g.length})</li>`+g.map(rowHtml).join(""); }
+  const focusId = (document.activeElement && document.activeElement.closest && document.activeElement.closest("#ranks")) ? document.activeElement.dataset.id : null;
+  $("ranks").innerHTML = html || `<li class="empty">No zones match the filter.</li>`;
+  document.querySelectorAll("#ranks li[data-id]").forEach(li=>{
+    li.onclick=()=>selectZone(li.dataset.id, true);
+    li.onkeydown=e=>{ if(e.key==="Enter"||e.key===" "){ e.preventDefault(); selectZone(li.dataset.id, true); } };
+    li.onfocus=()=>{ S.hoverId=li.dataset.id; draw(); };
+    li.onblur=()=>{ if(S.hoverId===li.dataset.id){ S.hoverId=null; draw(); } };
+  });
+  if(focusId){ const el=document.querySelector(`#ranks li[data-id="${CSS.escape(focusId)}"]`); if(el) el.focus({preventScroll:true}); }
+}
+function removedRenderRanks(){
+  return;  // dead legacy body below (grouped renderRanks above is live)
+  $("ranktitle").textContent = "ZONES BY RANKABILITY";
+  $("ranknote").innerHTML = false
+    ? ``
+    : (false
         ? "Official deterministic score from <span style='font-family:var(--mono)'>pipelines/scoring.py</span>."
-        : `<b>Preview only.</b> Sorted by ${esc(L.label.toLowerCase())}; the official priority score also needs THOR strike density, which has not been seeded yet — so no zone is officially rankable today.`);
+        : `<b>Preview only.</b> Sorted by ${esc(L.label.toLowerCase())}; a zone is officially rankable only when all three components (THOR strike density, crater evidence, exposure) are seeded for it.`);
   const rows = filteredZones().slice().sort((a,b)=>{
     const av=a[S.layer], bv=b[S.layer];
     if(av==null && bv==null) return a.id<b.id?-1:1;
@@ -440,13 +703,45 @@ function renderRanks(){
   });
 }
 const SOURCES = {  // AI-trust Footprints/Citations: every number names its source
-  strike_density: () => "Source: USAF THOR archive — not ingested yet",
-  crater_evidence: () => "Source: Barthelme KH-9 crater predictions, seeded by scripts/seed_db.py",
-  exposure: () => "Source: OpenStreetMap extract " + ((S.profile && String(S.profile.osm_extract||"").split("/").pop()) || "per country profile"),
+  strike_density: () => THOR_FOOTNOTE,
+  crater_evidence: () => `Source: Barthelme KH-9 crater predictions, seeded by scripts/seed_db.py; seeded for ${S.zones.filter(z=>z.crater_evidence!=null).length} of ${S.zones.length} zones in ${S.profile?S.profile.name:S.country} (KH-9 imagery coverage: Quang Tri + tri-border study areas).`,
+  exposure: () => osmAttribution(),
 };
-function compRow(z, field, label, unit, color){
+function compRow(z, field){
+  const meta = COMP_META[field], color = LAYERS[field].stops[2], v = z[field];
+  const src = esc(SOURCES[field]());
+  if(partialPayload()){
+    return `<div class="comp"><div class="row"><span>${meta.label}</span><b class="${v==null?"pend":""}">${v==null?"missing":fmt(v)+" "+meta.unit}</b></div>`+
+      `<div class="pc">partial zone list loaded - normalized bars hidden · ${src}</div></div>`;
+  }
+  if(v==null){
+    return `<div class="comp"><div class="row"><span>${meta.label}</span><b class="pend">missing</b></div>`+
+      `<div class="track missingtrack"></div>`+
+      `<div class="pc">missing - blocks the score · ${src}</div></div>`;
+  }
+  const norm = normOf(v, field), pc = percentile(z, field);
+  return `<div class="comp"><div class="row"><span>${meta.label}</span><b>${fmt(v)+" "+meta.unit}</b></div>`+
+    `<div class="track"><div class="fill" style="width:${norm*100}%;background:${color}"></div></div>`+
+    `<div class="pc">normalized ${fmtNorm(norm)} · country max ${fmt(S.countryMax[field])} ${meta.unit} · higher than ${Math.round(pc*100)}% of ${esc(S.profile.name)} zones with data · ${src}</div></div>`;
+}
+function surveyedRow(z){
+  const f = SURVEYED_FACTOR[z.surveyed_status];
+  return `<div class="comp"><div class="row"><span>Surveyed factor</span><b>${f==null?"—":"x"+(f===1?"1.0":String(f))} (${esc(z.surveyed_status)})</b></div>`+
+    `<div class="pc">surveyed factor (x1.0 unsurveyed / x0.25 surveyed / x0.0 cleared)</div></div>`;
+}
+function scoreStory(z){
+  const name = S.profile?S.profile.name:S.country;
+  if(z.priority_rank==null) return unscorableLine(z);
+  if(partialPayload()) return `Official rank #${z.priority_rank} (score ${fmt(z.priority_score,6)}) - stored values from pipelines/scoring.py. Partial zone list loaded - normalized bars hidden.`;
+  const f = SURVEYED_FACTOR[z.surveyed_status];
+  const rankedCount = S.zones.filter(x=>x.priority_rank!=null).length;
+  let s = `Score = ${fmtNorm(normOf(z.strike_density,"strike_density"))} (strike records) x ${fmtNorm(normOf(z.crater_evidence,"crater_evidence"))} (crater evidence) x ${fmtNorm(normOf(z.exposure,"exposure"))} (exposure) x ${f===1?"1.0":String(f)} (${esc(z.surveyed_status)}) = ${fmt(z.priority_score,6)} - Official rank #${z.priority_rank} of ${rankedCount} ranked zones in ${name}. Scored ${esc(z.scored_at||"")} (scoring.py).`;
+  if(z.surveyed_status==="cleared" && z.priority_score===0) s += " Cleared - score 0 by formula.";
+  return s;
+}
+function removedCompRow(z, field, label, unit, color){ return "";
   const v=z[field], pc=percentile(z,field);
-  const bar = v==null ? 0 : Math.round((tOf(v,{min:Math.min(...S.zones.map(x=>x[field]).filter(x=>x!=null)),max:Math.max(...S.zones.map(x=>x[field]).filter(x=>x!=null))})||0)*100);
+  const bar = 0;  // legacy min-max bar removed
   return `<div class="comp"><div class="row"><span>${label}</span><b class="${v==null?"pend":""}">${v==null?"pending":fmt(v)+" "+unit}</b></div>`+
     `<div class="track"><div class="fill" style="width:${bar}%;background:${color}"></div></div>`+
     `<div class="pc">${v==null?"no data seeded for this zone":"higher than "+Math.round(pc*100)+"% of "+esc(S.profile.name)+" zones with data"} · ${esc(SOURCES[field]())}</div></div>`;
@@ -458,19 +753,19 @@ function briefing(z){
   else parts.push(`Exposure has not been computed for ${S.profile.name} yet (no OSM extract has been run for this country).`);
   if(z.crater_evidence!=null) parts.push(`Crater evidence: ${fmt(z.crater_evidence)} craters/km² (${rankOf("crater_evidence")}) from KH-9 satellite-imagery crater predictions — physical evidence of bombing on this ground.`);
   else parts.push(`Crater evidence is missing: no imagery crater predictions cover this zone, so bombing here is currently evidenced only by records, not by observed craters.`);
-  if(z.strike_density!=null) parts.push(`Strike density: ${fmt(z.strike_density)} recorded missions/km² (${rankOf("strike_density")}) from USAF THOR records.`);
-  else parts.push(`Strike density is still pending: the THOR bombing archive is on disk but has not been ingested into zones yet, and the scoring formula needs all three components.`);
+  if(z.strike_density!=null) parts.push(`Strike records: ${fmt(z.strike_density)} recorded missions/km² (${rankOf("strike_density")}) from USAF THOR historical mission records. THOR records intended targets, not verified impacts - more records mean more historical evidence, not more present-day danger.`);
+  else parts.push(`Strike records are missing for this zone, and the scoring formula needs all three components.`);
   const missing = ["strike_density","crater_evidence","exposure"].filter(f=>z[f]==null);
   parts.push(z.priority_rank!=null
     ? `Official priority: rank ${z.priority_rank} (score ${fmt(z.priority_score)}), computed ${esc(z.scored_at||"")}. Survey status: ${esc(z.surveyed_status)}.`
-    : `Bottom line: ${name} <b>cannot be officially ranked yet</b> — missing ${missing.map(f=>LAYERS[f].label.toLowerCase()).join(", ")}. Survey status: ${esc(z.surveyed_status)}. Treat the evidence ranking on the left as a preview, not a clearance decision.`);
+    : `Bottom line: ${esc(unscorableLine(z))} Survey status: ${esc(z.surveyed_status)}. Treat any evidence order on the left as a preview, not a clearance decision.`);
   return parts.map(p=>`<p>${p}</p>`).join("");
 }
 function announce(msg){ const el=$("sr-status"); if(el) el.textContent = msg; }  // WCAG 4.1.3 status messages
 function selectZone(id, center){
   S.selectedId=id;
   const z=S.zones.find(x=>x.id===id); if(!z) return;
-  announce(`${z.admin_name||z.id} selected. ${z.priority_rank!=null? "Official rank "+z.priority_rank+"." : "Not officially rankable yet."}`);
+  announce(`${z.admin_name||z.id} selected. ${z.priority_rank!=null? "Official rank "+z.priority_rank+"." : "Not officially rankable yet: "+(missingFields(z).length? "no "+missingFields(z).map(f=>COMP_SHORT[f]).join(", no ")+"." : "awaiting a scoring run.")}`);
   if(center) fitCountry(z);
   renderRanks(); draw(); renderInspector(z);
   if(window.innerWidth<=1050) $("inspector").classList.add("open");
@@ -481,10 +776,13 @@ function renderInspector(z){
   $("inspector").innerHTML = `
     <div class="zname">${esc(z.admin_name||z.id)}${demo?'<span class="badge">◆ DEMO PROVINCE</span>':""}</div>
     <div class="zid">${esc(z.id)} · ${esc(S.profile.name)} · status: ${esc(z.surveyed_status)}${z.priority_rank!=null?` · rank #${z.priority_rank}`:" · unranked"}</div>
-    ${compRow(z,"strike_density","Strike density (THOR)","missions/km²","#e4572e")}
-    ${compRow(z,"crater_evidence","Crater evidence (imagery)","craters/km²","#e8a33d")}
-    ${compRow(z,"exposure","Exposure (people & livelihoods)","features/km²","#2fb3a3")}
-    ${z.priority_rank==null?`<div class="statusline"><b>Not officially rankable yet.</b> Missing: ${missing.map(f=>LAYERS[f].label).join(", ")||"a scoring run"}. One gap blocks the score — by design, so no number here is ever invented.</div>`:""}
+    ${compRow(z,"strike_density")}
+    ${compRow(z,"crater_evidence")}
+    ${compRow(z,"exposure")}
+    ${surveyedRow(z)}
+    <div class="statusline">${esc(scoreStory(z))}</div>
+    ${z.priority_rank!=null?`<div class="src">Normalized values rounded for display; score and rank are the stored values from pipelines/scoring.py.</div>`:""}
+    ${z.surveyed_status==="cleared"&&z.priority_rank!=null&&z.priority_score===0?`<div><span class="badge">Cleared - score 0 by formula</span></div>`:""}
     <h2>WHY THIS ZONE — BRIEFING</h2>
     <div class="brief">${briefing(z)}</div>
     <div class="src"><span class="badge" style="margin:0 6px 0 0">LOCAL TEMPLATE · NOT AI</span>Built in your browser from the stored components above. Every number is a real database value with its source named. The Spark agent (<span style="font-family:var(--mono)">POST /explain</span>) is not connected yet.</div>
@@ -643,11 +941,17 @@ async function loadCountry(cid){
   $("loading").style.display="flex"; $("loading").textContent=`loading ${cid} zones…`;
   try{
     const [profile, data] = await Promise.all([apiGet(`/countries/${cid}`), apiGet(`/zones?country=${cid}&limit=200`)]);
-    S.profile=profile; S.zones=data.zones; prepZones();
+    S.profile=profile; S.zones=data.zones; S.total=(typeof data.total==="number"?data.total:null); prepZones(); computeCountryMax();
+    if(S.layer==="exposure" && S.zones.length && S.zones.every(z=>z.exposure==null)){
+      S.layer="coverage";
+      announce(`Exposure is not seeded for ${profile.name} (0 of ${S.zones.length} zones). Showing Data coverage instead.`);
+    }
     $("loading").style.display="none";
     renderTabs(); renderLayers(); renderRanks(); updateChips(); fitCountry();
-    const demo = S.zones.find(z=>z.id===profile.demo_zone_id) || S.zones[0];
+    const demo = S.zones.find(z=>z.priority_rank===1) || S.zones.find(z=>z.id===profile.demo_zone_id) || S.zones[0];
     if(demo) selectZone(demo.id,false);
+    { const rankedN=S.zones.filter(z=>z.priority_rank!=null).length, top=S.zones.find(z=>z.priority_rank===1);
+      announce(top ? `${profile.name} loaded: ${S.zones.length} zones, ${rankedN} officially ranked. Top ranked: ${top.admin_name||top.id}.` : `${profile.name} loaded: ${S.zones.length} zones, ${rankedN} officially ranked. No zone officially ranked yet.`); }
   }catch(e){
     $("loading").textContent = "Could not load zones — is the API running? " + e.message;
   }
@@ -655,11 +959,16 @@ async function loadCountry(cid){
 function updateChips(){
   const n=S.zones.length, c=f=>S.zones.filter(z=>z[f]!=null).length;
   $("chip-zones").innerHTML = `${esc(S.profile?S.profile.name:S.country)} zones <b>${n}</b>`;
+  const rankedN=S.zones.filter(z=>z.priority_rank!=null).length, top=S.zones.find(z=>z.priority_rank===1);
+  $("chip-ranked").innerHTML = `officially ranked <b>${rankedN}/${n}</b>`;
   $("chip-exp").innerHTML = `exposure <b>${c("exposure")}/${n}</b>`;
+  $("chip-exp").classList.toggle("warn", c("exposure")<n);
   $("chip-crater").innerHTML = `crater evidence <b>${c("crater_evidence")}/${n}</b>`;
+  $("chip-crater").classList.toggle("warn", c("crater_evidence")<n);
   const sd=c("strike_density");
-  $("chip-thor").innerHTML = `strike density <b>${sd? sd+"/"+n : "THOR pending"}</b>`;
-  $("chip-thor").classList.toggle("warn", !sd);
+  $("chip-thor").innerHTML = `strike records <b>${sd}/${n}</b>`;
+  $("chip-top").innerHTML = top ? `top ranked <b>${esc(top.admin_name||top.id)} (${esc(top.id)}) #1</b>` : `top ranked <b>none yet</b>`;
+  $("chip-thor").classList.toggle("warn", sd<n);
   updateFindChip();
 }
 async function init(){

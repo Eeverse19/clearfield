@@ -6,8 +6,8 @@
   "demo_zone_id": null,
   "strike_source": {
     "type": "thor",
-    "dataset": "data/thor/thor_data_vietnam.csv",
-    "country_filter": "VIETNAM"
+    "dataset": "data/thor/THOR_Vietnam_7_31_2013.csv",
+    "country_filter": ["SOUTH VIETNAM", "NORTH VIETNAM"]
   },
   "imagery": ["kh9_barthelme_quang_tri", "sentinel2", "planet_nicfi"],
   "boundaries": {"source": "gadm", "country_code": "VNM", "admin_level": 1},
@@ -16,7 +16,6 @@
   "_todo": [
     "Not in demo scope (Laos + Cambodia); profile exists because Barthelme crater predictions cover Quang Tri and the tri-border area",
     "demo_area unset; Vietnamese report templates (agent/templates/vi/) not created",
-    "THOR csv requires a manual data.world download into data/thor/; South/North Vietnam rows are separate THOR targets and the filter must map both",
     "Pin OSM extract URL/checksum in docs/data-manifest.md"
   ]
 }

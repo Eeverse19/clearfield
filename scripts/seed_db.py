@@ -1,12 +1,14 @@
 """Seed the local SQLite DB from downloaded data. See seed_db.ps1/.sh wrappers.
 
-What this seeds today (everything reproducible without API keys or THOR):
+What this seeds today (everything reproducible without API keys; THOR
+strike_density is seeded separately by scripts/seed_thor.py):
 - zones: GADM 4.1 admin-1 polygons for every country profile (laos, cambodia,
   AND vietnam - 511,541 of the craters are Vietnamese; list_countries() drives
   seeding, demo scope does not). Zones are UPSERTED on (id): re-runs update
   geometry/name/country only and never reset surveyed_status, score
-  components, or finds. strike_density needs THOR and exposure needs OSM, so
-  no zone is rankable after seeding - scoring correctly returns 0.
+  components, or finds. strike_density comes from scripts/seed_thor.py
+  and exposure from pipelines/osm_exposure.py, so no zone is rankable
+  after this seed alone - scoring correctly returns 0.
 - craters: Barthelme predicted crater polygons (predictions.zip), transformed
   EPSG:32648 -> EPSG:4326 (CRS asserted from each file's crs member).
   area_m2/circularity/centroid computed per polygon; confidence NULL (source

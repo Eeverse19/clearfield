@@ -198,6 +198,8 @@ it; that is an imagery/SAM gap, not a reason to change the demo province.
 
 ## 5. Doc edits with real numbers filled in (apply only after the seed run lands)
 
+> **Superseded by §9.4/§9.7:** do not copy this section's 3,419,286 / "still 0 ranked" wording as seeded facts; use the corrected C-numbers (§9.4).
+
 Replacement fact everywhere: "strike_density landed (106/106 zones, 3,419,286
 missions assigned of 3,540,276 with coords / 4,670,422 rows); exposure (OSM) has
 NOT, so still 0 zones ranked."
@@ -314,5 +316,316 @@ if nested `load_country` validation ships, a string-filter fixture raises
 (§4) 7. §5 doc edits + stale-fact grep sweep 8. Repo test suite green.
 Non-goals: no META/Spark, no OSM/exposure, no scoring run, no PostGIS write path,
 no `seed_db.py` logic changes, no automated THOR download/extraction.
+(Steps 2–5 are amended by §9 below — read §9 before implementing.)
+
+## 9. Barthelme corrections — corrected seed contract (2026-10-28)
+
+Reconciles §2 with Barthelme et al. 2024 (supplement Text S2 + code
+`analysis.py`, github.com/pbarthelme/detecting-vietnam-war-bomb-craters) and with
+verified probes of the local file `data/thor/THOR_Vietnam_7_31_2013.csv`
+(4,670,422 rows, 85 cols; `.uv-tmp/probe_barthelme_full.py`,
+`.uv-tmp/probe_ind60_bysource.py`, `.uv-tmp/probe_pin_counts.py`,
+`.uv-tmp/probe_datum_pin.py`, all run read-only 2026-10-28). §9 supersedes §2
+where they conflict, itemised in §9.7. What does **not** change: coordinates are
+stored nowhere (datum changes zone assignment only); the only write is still
+`UPDATE zones SET strike_density` after reconciliation (§2.5); `strike_density`
+is still **missions/km² under U17** (§9.3) over WGS84 geodesic zone area;
+pyproj is already a declared dependency (`pyproject.toml`: `pyproj>=3.7.2`;
+verified locally pyproj 3.8.0 / shapely 2.2.0) — no new dependency.
+Implementation and `--dry-run` may proceed on the pinned defaults below; the
+**real run is gated on the four owner confirmations in §9.6**.
+
+### 9.1 Datum transform (pinned; supersedes "coords are WGS84 as-is")
+
+Source: Text S2 "Coordinate reference system" — the `*_wgs84` target columns
+"despite their names, did not use the WGS84 coordinate reference system but
+were instead provided in the Indian 1960 geodetic coordinate system
+(EPSG:4131). We therefore converted these coordinates from EPSG:4131 to
+EPSG:4326 (using EPSG:1542), which led to a shift of about 500 meters";
+implemented in `analysis.py:91-98` (points built with `crs='EPSG:4131'`, then
+`.to_crs('EPSG:4326')`). EPSG:1542 = "Indian 1960 to WGS 84 (2)"
+(geocentric translations, `towgs84=198,881,317`, ellps `evrst30`→WGS84,
+accuracy 44 m, EPSG area Vietnam onshore 14–18N / 105.61–109.36E; verified
+locally via `TransformerGroup("EPSG:4131","EPSG:4326")`).
+
+Pinned operation — force EPSG:1542 for **every** valid point, via its own
+area of interest (never a bare `Transformer.from_crs(4131, 4326)`, which
+silently no-ops outside 14–18N Vietnam: locally verified
+`(102.6,17.97)->(102.6,17.97)`, `(106.5,10.5)` and `(105.8,21.0)` unchanged):
+
+```python
+from pyproj import Transformer
+from pyproj.aoi import AreaOfInterest
+
+def make_datum_transform():
+    """EPSG:4131 (Indian 1960) -> EPSG:4326, forcing operation EPSG:1542."""
+    t = Transformer.from_crs(
+        "EPSG:4131", "EPSG:4326", always_xy=True,
+        area_of_interest=AreaOfInterest(
+            west_lon_degree=105.61, south_lat_degree=14.0,
+            east_lon_degree=109.36, north_lat_degree=18.01))
+    # Fail loud if PROJ ever selects the Ballpark/noop operation instead.
+    for (lon, lat), (exp_lon, exp_lat) in [
+            ((107.0, 16.8), (106.99580732082036, 16.801609276893966)),
+            ((102.6, 17.97), (102.5963613440926, 17.97141995372316))]:  # forced
+        got_lon, got_lat = t.transform(lon, lat)
+        if abs(got_lon - exp_lon) > 1e-6 or abs(got_lat - exp_lat) > 1e-6:
+            raise ValueError("EPSG:1542 datum transform not in effect")
+    return lambda lon, lat: t.transform(lon, lat)
+```
+
+The two reference pairs were
+observed locally with this exact construction (identical output from an
+explicit `+proj=helmert +x=198 +y=881 +z=317` pipeline and from a
+`towgs84=198,881,317` source CRS); shift at (107,16.8) is 481 m WNW
+(dlon −0.004193, dlat +0.001609).
+
+Where it sits: `parse_point` (§2.3) is unchanged — validity only, returns the
+raw `(lon, lat)` parsed from `TgtLatDD_DDD_WGS84`/`TgtLonDDD_DDD_WGS84`. The
+transform is applied in `count_missions` to a valid point **after** the
+dedup (§9.2) and weapon (§9.3) gates and **before**
+`tree.query(Point(lon, lat), predicate="covers")` (§2.4). Dropped rows are
+never transformed. Source columns are the `*_WGS84` pair treated as
+EPSG:4131 values (Barthelme-as-coded), so the §2.3 valid set is exactly
+preserved (3,540,276 valid; re-verified by `probe_pin_counts.py`). The
+`*_IND60` pair (cols 32/35) is **not** a counting input: locally
+IND60-valid = 3,539,770 (515 rows valid only in the WGS84 pair, 9 only in
+IND60 — unexplained), so sourcing from IND60 would change the valid set by
+−506 for non-datum reasons (owner decision D2, §9.6).
+
+### 9.2 B-52 dedup (pinned; supersedes "`MSNDate` never inspected")
+
+Source: Text S2 "B-52 bombing records" — B-52 missions "recorded in both the
+SEADAB and the SACCOACT databases starting from March, 1 1971"; SEADAB kept,
+SACCOACT discarded (SACCOACT coords are on a ~1 nautical-mile grid). The code
+is the operational rule (`analysis.py:151-153`):
+`flag_no_duplicate = 1 - (sourcerecord == 'SACCOACT') * (msndate >= '1971-04-01')`
+— all SACCOACT rows, no aircraft filter, implemented as a count flag (rows
+not deleted). Locally corroborated: in this file a row-level match is
+impossible (`SortieDuplicate` empty on all 4,670,422 rows; 0 shared
+date+coord or date+MissionID keys between SEADAB and SACCOACT B-52≥1971), so
+source-level exclusion is the only implementable reading.
+
+Pinned rule:
+
+```python
+DEDUP_SOURCE = "SACCOACT"
+DEDUP_CUTOFF = "19710401"   # MSNDate is fixed-width YYYYMMDD (sec. 0: 0 invalid)
+
+is_deduped = (row[idx["SourceRecord"]].strip() == DEDUP_SOURCE
+              and row[idx["MSNDate"]].strip() >= DEDUP_CUTOFF)
+```
+
+- Compare on the raw `YYYYMMDD` string (lexicographic = chronological at
+  fixed width). **Never** compare a local `MSNDate` against `'1971-04-01'`
+  (the analysis.py string format): every 1971 date would pass.
+- No `Aircraft_Root` condition (Barthelme-as-coded). On the local file this
+  is moot after validity: all 30,055 valid-coord rows the rule drops have
+  `Aircraft_Root == 'B52'` (`probe_pin_counts.py`); SACCOACT KC135 rows do
+  not survive coord validity past the cutoff.
+- A deduped row is counted in the new counter **`deduped_saccoact`**, is not
+  assigned to any zone, and contributes nothing to any density.
+- Gate order (§9.4): coord validity first (`invalid_coords`), then dedup,
+  then weapon gate, then datum transform, then point-in-zone — so
+  `deduped_saccoact` counts valid-coord SACCOACT rows only.
+  **Expected on the real file: `deduped_saccoact` = 30,055.**
+- Cutoff conflict, stated loudly: supplement text says 1971-03-01, code
+  implements 1971-04-01. The code date is pinned (it reproduces the published
+  results); the difference is exactly **796** valid-coord SACCOACT rows
+  (30,851 at March vs 30,055 at April, `probe_pin_counts.py`). `--dry-run`
+  must also print the diagnostic `deduped_saccoact_march_variant` (= 30,851
+  expected) so flipping the constant is a one-line owner call (decision D3).
+
+### 9.3 Weapon rule (U17 retained — filter NOT applied; variant is an owner decision)
+
+Barthelme's rule **is** pinned in their sources but is **not** pinned for
+this file/metric, so per the no-invention rule it is not applied:
+**every deduped valid-coord row = exactly 1 mission (U17 stands);
+`WeaponType`, `NumWeaponsDelivered`, `NumOfAcft` and all `Weapons*Weight`
+columns are never inspected; the new counter `weapon_excluded` exists in the
+identity (§9.4) and is always 0 under the pinned rule.**
+
+Why the filter is not portable without an owner decision (all verified):
+(a) **Metric conflict** — Barthelme's filtered quantity is *weapons
+delivered* (`ct = numweaponsdelivered * flag_filtered`, `analysis.py:185`);
+ClearField `strike_density` is missions/km² (U17). Filtered-missions/km² vs
+weapons/km² vs unfiltered missions/km² are three different metrics.
+(b) **Unpinned local mapping** — the imputation's 820-lb split tests a
+hyphenated `valid_aircraft_root` (`'B-52'`, …) that does not exist in the
+local file (local `Aircraft_Root` col 13: `'B52'`, `'KC135'`, …; no
+`ValidAircraftRoot`/`MFUNC_DESC_CLASS` columns in the 85-col header), so the
+rule as-coded matches almost nothing locally until a ClearField-authored
+value map is invented. (c) **Scale** — applying the full Barthelme filter to
+local mission counting keeps 1,112,529 of 3,540,276 valid rows (discards
+68.6%, `probe_barthelme_full.py`).
+
+The variant, recorded exactly for the owner (Text S2 + `analysis.py:44-85,
+122-161`; if ever enabled it is a spec amendment, not an implementer choice):
+keep a row iff `weapontype_imp` is one of 22 general-purpose bomb types —
+CACTA: `500LB GP MK-82`, `750LB GP M-117`, `250LB MK-81`, `500LB GP M-64`,
+`250LB M-57`, `200/260 M81/88`, `1000LB MK-83`, `100LB GP M-30`,
+`1000LB GP M-65`, `2000LB MK-84`, `2000LB M-66`, `3000LB M-118`; SACCOACT:
+`MK82 B`, `750 GP`, `M64A1`, `MK83 B`; SEADAB: `MK 82 GP BOMB (500) LD`,
+`M117 GP BOMB (750) LD`, `MK81 GP BOMB (250)`, `MK82 GP BOMB (500) HD`,
+`MK 82 GP BOMB (500)`, `MK83 GP BOMB (1000)` (union tested, source not
+checked) — **and** `numweaponsdelivered / numofacft <= 108`. `weapontype_imp`
+= `weapontype` (missing → `'N/A'`), overwritten wherever the estimated
+per-weapon weight (`weaponsloadedweight / numweaponsdelivered / 10` when both
+> 0, else `weapontypeweight`) exactly equals 260 → `MK81 GP BOMB (250)`,
+531 → `MK 82 GP BOMB (500) LD`, 571 → `MK82 GP BOMB (500) HD`,
+1100 → `MK83 GP BOMB (1000)`, or 820 → `M117 GP BOMB (750) LD` iff aircraft
+root in {`A-1`,`A-37`,`B-52`,`B-57`,`F-100`,`F-105`,`F-5`} else
+`CBU49 AN PR MINE` (not in the 22, i.e. excluded). Unknown/unimputed weapon
+rows fail the filter (Barthelme count them only in a robustness subset).
+Note: no local row has `NumWeaponsDelivered == -1` (full probe), so §2.3's
+"-1 sentinel" remark and §6 test 4 are fixture-only under U17.
+
+### 9.4 Revised reconciliation & acceptance (supersedes §2.6)
+
+Identity (mismatch = exit 1 BEFORE writing), with gates applied per row in
+the pinned order validity → dedup → weapon → transform → assign:
+
+```
+rows_read == assigned + invalid_coords + outside_zones
+             + deduped_saccoact + weapon_excluded      (+ outside_scope if --country)
+assigned  == sum(missions over zones in scope)
+```
+
+`weapon_excluded` must print/return 0 under §9.3. The returned dict gains
+`deduped_saccoact`, `weapon_excluded`, `baseline_assigned`, `datum_assigned`
+(and diagnostic `deduped_saccoact_march_variant`, `ind60_ne_wgs84`).
+
+The §2.6 numbers become the **uncorrected baseline** (A), recomputed in the
+same pass (raw `*_WGS84` point, no dedup, no weapon gate — a second
+`tree.query` per valid row) and compared exactly:
+
+- **A — baseline (all-country run: must match §2.6 exactly, else exit 1
+  before write; under `--country` A is tallied in-scope only and reported,
+  not compared to these totals):**
+  rows_read 4,670,422; `baseline_assigned` 3,419,286; baseline outside
+  120,990; `invalid_coords` 1,130,146; baseline `TgtCountry` mismatch
+  144,697; baseline zone-country missions KH 194,836 / LA 1,094,447 /
+  VN 2,130,003. (Zone-country and mismatch baselines require tallying A per
+  zone in the dry-run/report only; A never writes densities.) The mismatch
+  and zone-country values supersede §2.6 (144,672; KH 194,809 / VN 2,130,030):
+  the §0 scan took the first `covers` hit in STRtree order for points exactly
+  on a shared border, while §2.4 mandates smallest `zones.id`; 70 such points
+  change owner (net KH +27 / VN −27, mismatch +25), totals identical.
+  Observed on the first dry-run, 2026-10-28.
+- **B — datum-only:** `datum_assigned` = assignments of the transformed
+  point, dedup not applied. Datum delta = B − A (report totals; per-zone B
+  not required).
+- **C — corrected (final; the only counts written):** transformed point,
+  deduped rows excluded. `assigned` = C; dedup delta = C − B = −(deduped
+  rows whose transformed point lands in a zone). Total delta C − A must equal
+  datum delta + dedup delta exactly — every delta vs §2.6 is thereby
+  explained (weapon delta = 0 by §9.3).
+
+**Revised acceptance for `--dry-run`:** A-numbers exact as above;
+`deduped_saccoact` = 30,055; `deduped_saccoact_march_variant` = 30,851;
+`weapon_excluded` = 0; if the `TgtLatDD_DDD_IND60`/`TgtLonDDD_DDD_IND60`
+columns are present, also report `ind60_ne_wgs84` (valid rows whose IND60
+strings differ from the WGS84 pair; expected **1,246,748** — diagnostic for
+decision D2, never a counting input). Real-run alignment (2026-10-28):
+the seed observed **1,247,263**, +515 vs the probe expectation, a
+definition difference, not a data change. The probe
+(`.uv-tmp/probe_pin_counts.py`, behind the §9.1/§9.4 figure) counts only
+rows valid in **both** pairs (`wv and iv`) whose strings differ, whereas
+`scripts/seed_thor.py` counts every row whose `*_WGS84` pair passes
+`parse_point` and whose stripped IND60 strings differ — without requiring
+the IND60 pair itself to be valid. The +515 is exactly the 515 rows valid
+only in the WGS84 pair (§9.1), all of which necessarily string-differ from
+their (invalid) IND60 pair. Diagnostic only, never a counting input (as
+above). C-numbers (assigned, outside,
+corrected mismatch total + matrix, per-country missions, density min/max,
+top-5) are **reported, not pre-pinned** — they become the real-run
+acceptance only after the owner confirms D1–D4 (§9.6) on the dry-run
+output. §2.6's "106/106 densities > 0, Laos top LAO.12_1 15.831911" is
+superseded for corrected densities (it remains the baseline-A expectation);
+§5's replacement fact must use C-numbers once known, not 3,419,286.
+Mismatch counting (§2.4) runs on C for the headline matrix and on A for the
+baseline anchor. Short rows are padded with `""` to header width before any
+indexing (scanner behaviour §0; required columns now include the low-index
+`SourceRecord` col 0 and `MSNDate` col 2, header-asserted together with
+`TgtCountry` + the WGS84 pair before any DB write).
+
+### 9.5 Test strategy under the transform (pinned: injectable transformer)
+
+`seed_thor(csv_path=None, db_path=None, country=None, dry_run=False,
+datum_transform=None)` — `None` builds `make_datum_transform()` (§9.1); any
+callable `(lon, lat) -> (lon, lat)` may be injected. The §6 fixtures stay
+synthetic WGS84 squares, unchanged: tests inject the identity transform
+(`lambda lon, lat: (lon, lat)`) so fixture geometry/areas need no datum
+awareness. Fixture CSVs must add the two new required columns
+(`SourceRecord`, `MSNDate`; use non-dedup values e.g. `SEADAB`/`19700101`
+except where the test targets dedup). The 12 §6 tests stand; add:
+
+13. `test_dedup_drops_saccoact_from_19710401_only` — SACCOACT `19710401`
+    dropped (`deduped_saccoact` increments, zone gets no mission); SACCOACT
+    `19710331` and SEADAB `19710401` counted; identity still closes.
+14. `test_default_transform_is_forced_epsg1542` — `make_datum_transform()`
+    maps (107.0, 16.8) and out-of-area (102.6, 17.97) to the §9.1 reference
+    pairs within 1e-6 (guards the silent-noop trap; no CSV/DB needed).
+15. `test_transform_applied_before_assignment` — inject a stub shift
+    (e.g. lon + 0.01) moving a fixture point across a zone edge; assignment
+    follows the shifted point, and stored DB values are densities only.
+16. `test_baseline_and_corrected_counts_reconcile` — fixture with one
+    deduped row + the stub shift: A/B/C totals satisfy
+    C − A = (B − A) + (C − B) and the §9.4 identity with
+    `weapon_excluded == 0`.
+
+Test 4 (`test_minus_one_weapons_still_one_mission`) stands verbatim (U17).
+
+### 9.6 Owner decisions gating the real run (dry-run may proceed)
+
+- **D1 — Forcing EPSG:1542 outside 14–18N Vietnam.** Pinned default: force
+  everywhere (all of Laos/Cambodia, N+S Vietnam). This extrapolates the
+  DMA-Vnm operation beyond its EPSG area and beyond Barthelme's two
+  validation areas; the alternative (bare per-point PROJ selection) applies
+  **no** shift to most Laos/Cambodia zones, i.e. silently seeds them
+  uncorrected. Owner to confirm forcing on the dry-run deltas.
+- **D2 — Source columns `*_WGS84` (pinned) vs `*_IND60`.** Locally the
+  WGS84 pair is a pure IND60 copy for SEADAB/SACCOACT, but ~1,246,748 valid
+  CACTA rows already carry a partial ~320 m WNW shift in the WGS84 pair
+  that is **not** EPSG:1542 (0/600 sampled rows match 1542(IND60)); the
+  pinned rule partially double-shifts those rows (Barthelme-as-coded —
+  their data.world file is a different distribution and their code never
+  reads IND60 columns). Sourcing from IND60 avoids that but changes the
+  valid set by −506 (§9.1). Owner to rule, or commission a
+  data.world-vs-local provenance check.
+- **D3 — Dedup cutoff 1971-04-01 (code, pinned) vs 1971-03-01 (text).**
+  796 valid rows. Owner to confirm before the real run.
+- **D4 — Weapon filter (§9.3 variant).** Pinned default: not applied (U17
+  missions/km²). Enabling it requires the owner to choose the metric
+  (filtered missions/km² vs weapons/km² — the latter redefines
+  `zones.strike_density` and its docstring everywhere) and to approve a
+  locally-authored `Aircraft_Root` value map for the 820-lb split.
+
+**Resolution (2026-10-28):** owner confirmed all pinned defaults — D1+D2
+`*_WGS84` columns with forced EPSG:1542 everywhere, D3 dedup cutoff
+1971-04-01 (code), D4 weapon filter OFF (U17 missions/km²) — and the real
+run + scoring executed with corrected C-numbers: rows 4,670,422, assigned
+3,401,836, invalid 1,130,146, outside 108,385, `deduped_saccoact` 30,055
+(March variant 30,851), `weapon_excluded` 0; per-country missions cambodia
+191,184 / laos 1,090,845 / vietnam 2,119,807; `strike_density` on 106/106
+zones; scoring laos 4/18, cambodia 2/25, vietnam 0/63.
+
+### 9.7 Superseded text (exact)
+
+- §2.1 "Only these 3 columns are ever read" → 5 counting columns
+  (`TgtCountry`, `SourceRecord`, `MSNDate`, WGS84 lat/lon) + 2 optional
+  diagnostic IND60 columns; header assert covers the 5.
+- §2.3 "`NumWeaponsDelivered` …, `WeaponType`, `MSNDate` are never
+  inspected: every valid-coord row = exactly 1 mission" → `SourceRecord` +
+  `MSNDate` are inspected for the §9.2 dedup gate only; the rest stands.
+- §2.4 assignment point → the §9.1-transformed point.
+- §2.6 identity + "Acceptance for the first real all-country run" → §9.4
+  (old numbers demoted to baseline A).
+- §5 replacement fact / mission totals → use corrected C-numbers (§9.4);
+  do not publish 3,419,286 / LAO.12_1 15.831911 as seeded facts.
+- §6 fixture ("only the 3 required cols" + 12 tests) → §9.5 (5 cols, 16
+  tests, injectable transform).
+- §8 step 4 → dry-run must satisfy §9.4 acceptance; step 5 (real run)
+  additionally requires D1–D4 confirmation recorded.
 
 

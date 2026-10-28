@@ -130,6 +130,14 @@ def test_index_serves_frontend_gui():
     assert "ClearField" in body and 'id="map"' in body and "/zones?country=" in body
     # UX-skill pass guards: live region, keyboard-reachable map, demo zone join key.
     assert 'aria-live="polite"' in body and 'tabindex="0"' in body and "demo_zone_id" in body
+    # Visualization-spec guards: honest layers, missing-data treatment, attribution.
+    for needle in ("Official priority", "Strike records (THOR)", "Data coverage",
+                   "not verified impacts", "OpenStreetMap contributors",
+                   "not zero, not low, not safe", "Unscorable", "◆ DEMO",
+                   "country max", "Math.log1p"):
+        assert needle in body, needle
+    for stale in ("THOR pending", "A real zero gets the lightest", "needs the THOR ingest"):
+        assert stale not in body, stale
 
 
 @pytest.mark.skipif(not config.LOCAL_DB_PATH.exists(), reason="real seeded DB not present")
@@ -138,4 +146,8 @@ def test_real_db_zones_smoke():
     assert out["total"] == 18
     # 4 after the 2026-10-26 false-zero correction (LAO.11_1 -> NULL).
     assert sum(1 for z in out["zones"] if z["crater_evidence"] is not None) == 4
-    assert all(z["priority_rank"] is None for z in out["zones"])
+    # THOR seeded + scoring run 2026-10-28: strike on all 18; only the
+    # 4 zones with crater_evidence are ranked (observed ranks 1-4).
+    assert all(z["strike_density"] is not None for z in out["zones"])
+    ranked = {z["id"] for z in out["zones"] if z["priority_rank"] is not None}
+    assert ranked == {"LAO.1_1", "LAO.4_1", "LAO.17_1", "LAO.12_1"}

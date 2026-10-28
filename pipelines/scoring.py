@@ -12,8 +12,10 @@ Contract (WORKFLOW_SYNTHESIS.md section 2):
   log1p(x)/log1p(country max) (max 0 -> 0.0), ranks 1..N per country with
   tie-break score DESC, raw components DESC, id ASC, and is the ONLY writer
   of priority_score/priority_rank/scored_at. Components are never mutated.
-- With strike_density/exposure still NULL (no THOR/OSM yet), a correct run
-  scores 0 zones and says so. That is the expected output today.
+- THOR strike_density is seeded on 106/106 zones and OSM exposure has
+  landed for laos and cambodia, but most zones are still unscorable for
+  lack of crater_evidence (vietnam also still lacks exposure): while any
+  component is NULL, a correct run leaves that zone unscored and says so.
 """
 
 import math
@@ -118,4 +120,6 @@ if __name__ == "__main__":
     print(f"[scoring] {summary['country']}: {summary['scored']}/{summary['zones']} zones scored, "
           f"{summary['unscored']} unscored (NULL components: {summary['null_components']})")
     if summary["scored"] == 0 and summary["zones"]:
-        print("[scoring] 0 scored is expected until THOR strike_density and OSM exposure land.")
+        print("[scoring] 0 scored is expected while a component is NULL "
+              "(see NULL-component counts above: a NULL component means "
+              "unscorable, never an imputed 0).")

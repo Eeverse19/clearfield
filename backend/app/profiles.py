@@ -32,4 +32,11 @@ def load_country(country_id: str) -> dict:
         raise ValueError(f"{path.name} missing required fields: {missing}")
     if profile["id"] != country_id:
         raise ValueError(f"{path.name} id {profile['id']!r} != filename {country_id!r}")
+    strike_source = profile["strike_source"]
+    country_filter = strike_source.get("country_filter") if isinstance(strike_source, dict) else None
+    if (not isinstance(country_filter, list) or not country_filter
+            or not all(isinstance(value, str) for value in country_filter)):
+        raise ValueError(
+            f"{path.name} strike_source.country_filter must be a non-empty "
+            f"list of strings, got {country_filter!r}")
     return profile

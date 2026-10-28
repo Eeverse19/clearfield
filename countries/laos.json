@@ -6,15 +6,12 @@
   "demo_zone_id": "LAO.18_1",
   "strike_source": {
     "type": "thor",
-    "dataset": "data/thor/thor_data_vietnam.csv",
-    "country_filter": "LAOS"
+    "dataset": "data/thor/THOR_Vietnam_7_31_2013.csv",
+    "country_filter": ["LAOS"]
   },
   "imagery": ["kh9_barthelme_tri_border_area", "sentinel2", "planet_nicfi"],
   "boundaries": {"source": "gadm", "country_code": "LAO", "admin_level": 1},
   "osm_extract": "data/osm/laos-261025.osm.pbf",
   "stats_source": "Published Laos NRA province-level statistics (not IMSMA polygons)",
-  "_todo": [
-    "THOR csv requires a manual data.world download into data/thor/",
-    "Confirm exact THOR country-column value once the csv header is available"
-  ]
+  "_todo": []
 }

@@ -14,7 +14,7 @@ design bug — fix the design, not the country.
 | `languages` | Query/report languages, e.g. `["en", "lo"]` |
 | `demo_area` | Demo province display name (`Xiangkhoang`, `Tbong Khmum`); may differ from GADM/`zones.admin_name` (e.g. GADM stores `TbongKhmum`), so never join on it. `null` if unset. |
 | `demo_zone_id` | GADM `GID_1` of the demo province (`LAO.18_1`, `KHM.25_1`); use this for any DB join (`zones.id`). `null` if unset. |
-| `strike_source` | `{type, dataset, country_filter}` — THOR for Tier 1, UCDP/ACLED later |
+| `strike_source` | `{type, dataset, country_filter}` — THOR for Tier 1, UCDP/ACLED later. `country_filter` is a **list** of exact source values (THOR `TgtCountry`) the cross-check expects; zone assignment is by coordinates, never by this filter. Vietnam needs two: `["SOUTH VIETNAM", "NORTH VIETNAM"]`. |
 | `imagery` | Image sets used for tiling/segmentation, in preference order |
 | `boundaries` | Boundary source (GADM) and admin level used for zones |
 | `osm_extract` | OSM extract for exposure: repo-relative `data/osm/<name>-<YYMMDD>.osm.pbf` path (pinned), or bare slug until pinned |

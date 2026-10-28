@@ -8,11 +8,9 @@ P2 is stretch/polish.
 
 **Where the project actually is:** scaffold + first data tranche. 106 GADM
 zones and 541,397 Barthelme craters are seeded; OSM exposure is computed
-for all Laos + Cambodia zones; `/zones` and `/finds` work; 32 tests pass
-(`.venv\Scripts\python.exe -m pytest -q` → 32 passed, 2026-10-27).
-**No zone is rankable yet**: `strike_density` is NULL on 106/106 zones,
-so `pipelines/scoring.py` correctly scores 0. The THOR data needed to fix
-that is already on disk — only the ingestion code is missing (P0-1).
+for all Laos + Cambodia zones (Vietnam 0/63); `/zones` and `/finds` work; 80 tests pass
+(`.venv\Scripts\python.exe -m pytest -q` → 80 passed, 2026-10-28).
+`strike_density` is non-NULL on 106/106 zones (corrected THOR seed, P0-1 done 2026-10-28), and `pipelines/scoring.py` ranks 6 zones: Laos 4/18, Cambodia 2/25, Vietnam 0/63 (Vietnam has no OSM exposure). The remaining unscored zones lack `crater_evidence` (and, for Vietnam, `exposure`).
 
 **Oct 28, 2026 addendum (imagery pipeline; the audit below is otherwise
 still current):** Sentinel-2 catalog **done** — 630,318 scenes
@@ -32,7 +30,7 @@ CC BY-NC). Live status: `scripts/dashboard.py` (127.0.0.1:8765).
 New finding for P0-1: the Barthelme paper's THOR corrections (Indian
 1960 datum ~500 m shift, B-52 SACCOACT/SEADAB dedup, weapon filtering)
 are **not** in `docs/thor/` — fold them into the spec before seeding
-(details in `docs/data-manifest.md` §4).
+(details in `docs/data-manifest.md` §4). **(Folded in 2026-10-28 as `docs/thor/thor_final_spec.md` §9; see P0-1.)** **Known discrepancy (verified 2026-10-28):** the `data/sentinel2/` catalog, `data/imagery/` chips, and `data/worldstrat/` outputs claimed in this addendum are **not on disk** (`data/` contains only `barthelme/`, `gadm/`, `osm/`, `thor/`, and the DB); regeneration is pending.
 
 ---
 
@@ -59,7 +57,7 @@ are **not** in `docs/thor/` — fold them into the spec before seeding
 
 ## P0 — blocks the first ranking / demo
 
-- [ ] **P0-1. Implement the THOR `strike_density` seed. (M)**
+- [x] **P0-1. Implement the THOR `strike_density` seed. (M) — DONE 2026-10-28 (real run + scoring).** Implemented per `docs/thor/thor_final_spec.md` incl. §9; D1–D4 confirmed by owner 2026-10-28 as pinned defaults (spec §9.6: D1+D2 `*_WGS84` columns + forced EPSG:1542 everywhere, D3 SACCOACT dedup cutoff 1971-04-01, D4 weapon filter OFF / U17 missions/km²). Corrected (C) real-run summary: rows 4,670,422; assigned 3,401,836; invalid 1,130,146; outside 108,385; deduped_saccoact 30,055 (March variant 30,851); weapon_excluded 0; corrected mismatch 144,468; per-country missions cambodia 191,184 / laos 1,090,845 / vietnam 2,119,807. `strike_density` non-NULL 106/106; density ranges KH 0.000930–6.209188 (top `KHM.25_1` 6.209188), LA 0.007658–15.828597 (top `LAO.12_1` 15.828597), VN 0.003283–53.146062 (top `VNM.50_1` 53.146062). Scoring then ranked Laos 4/18, Cambodia 2/25, Vietnam 0/63 (no exposure); both demo provinces stay unscorable for lack of `crater_evidence`. (Baseline-A dry-run history: rows_read 4,670,422 / invalid_coords 1,130,146 / baseline_assigned 3,419,286 reproduced exactly before the real run; baseline-A figures are scan expectations, superseded by the C numbers above.) Original task text follows for history:
   A complete, parent-ready spec already exists: `docs/thor/thor_final_spec.md`
   (rescued from `.uv-tmp`; see `docs/thor/README.md`). Deliverables per spec:
   new `scripts/seed_thor.py` (+ `.ps1`/`.sh` wrappers), profile edits in
@@ -67,19 +65,16 @@ are **not** in `docs/thor/` — fold them into the spec before seeding
   `data/thor/THOR_Vietnam_7_31_2013.csv`, `country_filter` string → list —
   **do not rename the CSV**), point-in-zone assignment, and the doc edits in
   `docs/thor/thor_doc_edits.md`. Expected result (from the scan):
-  strike_density populated for all 106 zones; top density Quang Tri
-  ≈ 54.8 missions/km², Laos top Savannakhet ≈ 15.83. Then
-  `pipelines/scoring.py:26` finally ranks zones instead of scoring 0.
-  Also fixes the stale claim at `README.md:5` ("THOR has not landed" — the
+  strike_density populated for all 106 zones; observed C tops: Quang Tri (`VNM.50_1`) 53.146062 missions/km², Laos top Savannakhet (`LAO.12_1`) 15.828597 (≈54.8 / ≈15.83 were baseline-A scan expectations, superseded). `pipelines/scoring.py` now ranks 6 zones (Laos 4, Cambodia 2, Vietnam 0).
+  (Historical note: this item originally also targeted a stale THOR claim at `README.md:5` — the
   file landed; the pipeline hasn't).
 - [x] **P0-2. Build the map UI. — DONE 2026-10-27.** `frontend/index.html`
   is now a single-file interactive map GUI (canvas choropleth per score
-  component, evidence-ranking list honestly labelled a preview until THOR
-  lands, per-zone inspector with a briefing generated from stored
+  component, evidence-ranking list: official priority for the zones ranked after P0-1 (Laos 4/18, Cambodia 2/25), honestly labelled a preview elsewhere, per-zone inspector with a briefing generated from stored
   components, and field-find recording via `POST /finds` with an offline
   queue). Served by the backend at `/`; `Start-ClearField.bat` launches it.
-  Official priority ranking still needs P0-1.
-- [ ] **P0-3. Commit the work in progress and restore the remote. (S)**
+  Official priority ranking is live for the 6 ranked zones since P0-1 landed (2026-10-28); other zones remain preview-only.
+- [x] **P0-3. Commit the work in progress and restore the remote. (S) — DONE 2026-10-28.** Verified 2026-10-28: `main` == `origin/main` (`3610314`). The P0-1 THOR code + doc refresh are a new separate uncommitted diff left for owner review. (Stale original text below kept for history.)
   The repo has exactly one commit (`664bacb Project creation`), the
   upstream `origin/main` is **gone** (remote:
   `https://github.com/Eeverse19/clearfield.git`), and substantial work is
@@ -93,14 +88,14 @@ are **not** in `docs/thor/` — fold them into the spec before seeding
   `agent/spark.py:9` raises `NotImplementedError` ("cache-first path lands
   first"). `demo/cached-responses/` contains only a README, so the cached
   demo path (`docs/demo-script.md`) has nothing to serve yet either.
-  Blocked on `META_API_KEY` for live calls only — cache-first needs P0-1.
+  Blocked on `META_API_KEY` for live calls only — cache-first's P0-1 dependency is satisfied (done 2026-10-28).
 - [x] **P0-5. Pick the Cambodia demo province. — DONE 2026-10-27.**
   Owner confirmed **Tbong Khmum** (GADM `TbongKhmum`, `KHM.25_1`). Set in
   `countries/cambodia.json` as `"demo_area": "Tbong Khmum"` (display name,
   same GADM-name convention as Laos `"Xiangkhoang"`). THOR scan: 31,419 missions,
   ≈ 6.37/km², #1 Cambodia on both count and density. Barthelme
   `crater_evidence` is still NULL there — ranking that province still
-  needs a crater source (P1-7) plus THOR ingest (P0-1). Name-join fix:
+  needs a crater source (P1-7); THOR ingest (P0-1) is done. Name-join fix:
   `demo_area` is only a display name (`"Tbong Khmum"` matches 0 rows in
   `zones.admin_name`, which stores GADM `TbongKhmum`); the stable join
   key is the new required `demo_zone_id` (GADM `GID_1`: `KHM.25_1`,
@@ -152,16 +147,15 @@ are **not** in `docs/thor/` — fold them into the spec before seeding
 - [ ] **P2-1. Pin UXOTi_NPA + AMLID downloads. (S)**
   `scripts/download_data.py:92` TODO (Figshare 21688673, Zenodo 18001447);
   `README.md:57` notes THOR/UXOTi/AMLID are unpinned.
-- [ ] **P2-2. Update stale status text after P0-1 lands. (S)**
+- [x] **P2-2. Update stale status text after P0-1 lands. (S) — DONE 2026-10-28.** Pre-seed stale facts fixed earlier (observed counts, real THOR filename/sizes, OSM-landed wording, durable frontend preview text); post-seed half applied 2026-10-28 with corrected C-numbers + ranked counts (Laos 4/18, Cambodia 2/25, Vietnam 0/63) across README/TASKS/WORKFLOW_SYNTHESIS/data README/manifest/getting-started/THOR README/frontend. The spec's canned OSM "still 0 ranked" wording was not copied.
   `README.md:5`, `docs/getting-started.md:5`, `frontend/index.html`,
   `frontend/README.md:4` all describe the pre-THOR state. The exact edits
   are pre-written in `docs/thor/thor_doc_edits.md`.
-- [ ] **P2-3. Replace manifest mission counts with observed counts. (S)**
+- [x] **P2-3. Replace manifest mission counts with observed counts. (S) — DONE 2026-10-28.** `docs/data-manifest.md` §4 now carries observed counts (Laos 1,087,019; S. Vietnam 1,658,608; N. Vietnam 607,482; Cambodia 147,097; Thailand 2,574), real filenames/sizes/MD5s, and §9 status.
   `docs/data-manifest.md:31` claims (Laos 1,041,519 etc.) are all low vs
   the actual CSV scan — observed table is in `docs/thor/thor_final_spec.md` §0.
 - [ ] **P2-4. Stale `.pytest_cache` `lastfailed` entry** names
-  `tests/test_api.py::TestClient`; the suite passes clean (32 passed,
-  2026-10-27). No action beyond the next test run overwriting it.
+  `tests/test_api.py::TestClient`; the suite now collects 80 tests (`pytest --collect-only -q` → "80 tests collected", 2026-10-28; focused API/scoring/THOR-seed run 44 passed). No action beyond the next test run overwriting it.
 - [ ] **P2-5. Vietnam profile completion** (`countries/vietnam.json` `_todo`):
   unset `demo_area`, NORTH+SOUTH VIETNAM `TgtCountry` mapping (folded into
   P0-1's list-shaped `country_filter`; note `VIETNAM` as a value occurs
@@ -174,8 +168,8 @@ are **not** in `docs/thor/` — fold them into the spec before seeding
 ```
 agent/        Spark explain/report agent (stub) + report templates (en only)
 backend/      FastAPI app — /health /countries /zones /finds work; /explain 501
-countries/    laos/cambodia/vietnam profiles (dataset name fixed by P0-1)
-data/         gitignored datasets + clearfield.db (788 MB seeded SQLite)
+countries/    laos/cambodia/vietnam profiles (THOR dataset + list filter, P0-1 code)
+data/         gitignored datasets + clearfield.db (825,843,712 B seeded SQLite)
   thor/       canonical THOR csv (2.5 GB)
 db/           schema.local.sql (runtime SQLite), schema.sql (PostGIS target)
 demo/         cached-responses/ — currently just a README (P1-5)
@@ -183,11 +177,11 @@ docs/         architecture, data-manifest, demo-script, getting-started
   thor/       NEW: strike-density specs + scan evidence (rescued from .uv-tmp)
 field/        offline triage (stub)
 frontend/     single-file map GUI, served by backend at / (P0-2 done)
-pipelines/    scoring.py (works, starved of THOR), osm_exposure.py (works),
+pipelines/    scoring.py (works; ranks 6 zones post-THOR), osm_exposure.py (works),
               tiling.py (works, pilot scene done), sam_segment.py (works,
               awaiting checkpoint) — Oct 28 addendum above
-scripts/      download_data.* / seed_db.* (seed_thor.* lands with P0-1)
-tests/        5 files, 32 tests, all passing
+scripts/      download_data.* / seed_db.* / seed_thor.* (P0-1 done 2026-10-28)
+tests/        80 tests, all passing (2026-10-28)
 THOR VIETNAM DATA/  DELETED 2026-10-27 (D1) — was a proven duplicate of data/thor/
 Raw Docs/     empty — your call (D3)
 ```

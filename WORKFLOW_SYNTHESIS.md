@@ -260,7 +260,7 @@ score  = n_strike * n_crater * n_exposure * factor[surveyed_status]
 - Consequence on today's DB (state it, don't soften it): with
   strike_density and exposure NULL for 106/106 zones, a correct
   scoring run today scores **0 zones in every country** and that is
-  the expected output until THOR+OSM land (§5).
+  the expected output while those components are NULL (§5; status updated 2026-10-28 there).
 
 ### 2.5 Ranks, tie-break, 0-scored output
 
@@ -502,7 +502,25 @@ verified); `tests/` are code, covered by T-S11/T-A10.
 
 ---
 
-## 5. Blocked on META_API_KEY / THOR / OSM
+## 5. Blocked on META_API_KEY / OSM (Vietnam) / crater coverage (status updated 2026-10-28)
+
+> **Update 2026-10-28 (the audit text below is the Oct 27 snapshot):**
+> OSM exposure **has landed** for Laos + Cambodia (`zones.exposure`
+> non-NULL 43/106; Vietnam 0/63, no extract acquired) and the Cambodia
+> demo is set (Tbong Khmum, `KHM.25_1`). THOR is **RESOLVED**: the
+> corrected seed ran 2026-10-28 (`scripts/seed_thor.py`,
+> `docs/thor/thor_final_spec.md` §9: forced EPSG:1542 datum transform,
+> SACCOACT dedup from 1971-04-01, weapon filter not applied; D1–D4
+> confirmed as pinned defaults, §9.6) — C summary: rows 4,670,422,
+> assigned 3,401,836 (cambodia 191,184 / laos 1,090,845 / vietnam
+> 2,119,807), invalid 1,130,146, outside 108,385, deduped_saccoact
+> 30,055, corrected mismatch 144,468. `strike_density` is non-NULL
+> 106/106 and scoring ranks 6 zones: Laos 4/18, Cambodia 2/25,
+> Vietnam 0/63. The remaining blockers are crater coverage (only
+> 4 Laos + 2 Cambodia + 3 Vietnam zones have `crater_evidence`, and
+> both demo provinces, Xiangkhoang `LAO.18_1` and Tbong Khmum
+> `KHM.25_1`, are among the NULL ones) and Vietnam exposure.
+> `survey-report.md:4` `strike_density` is now fillable for every zone.
 
 **META_API_KEY** (absent: no `.env` file exists; `backend/app/config.py:10`
 reads env only):
@@ -524,7 +542,7 @@ reads env only):
   (`field/prompts/README.md:3-4`), not on the Meta key. `/zones`,
   `/finds`, and §2 scoring need no key at all.
 
-**THOR** (`thor_data_vietnam.csv` absent; manual data.world account,
+**THOR** (historical Oct-27 snapshot — superseded by the 2026-10-28 update above, where THOR is RESOLVED; Oct 27: CSV then recorded absent under its old name; manual data.world account,
 `scripts/download_data.py:85`, `docs/getting-started.md:32`):
 
 - `zones.strike_density` NULL 106/106 → by §2.4, **0 zones scorable**,

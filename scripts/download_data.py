@@ -5,7 +5,8 @@ Usage: python scripts/download_data.py [file.zip ...]  (no args = all pinned)
 Barthelme KH-9 pack (Zenodo 10629987) and OSM (Geofabrik) URLs are pinned;
 downloads resume and a checksum failure stops the script. UXOTi_NPA and AMLID
 are not pinned yet, and THOR always stays manual (free data.world account):
-data.world/datamil/vietnam-war-thor-data -> data/thor/thor_data_vietnam.csv.
+data.world/datamil/vietnam-war-thor-data -> THOR_Vietnam.zip (Deflate64; extract
+with 7-Zip, not zipfile) -> data/thor/THOR_Vietnam_7_31_2013.csv.
 Stdlib only, so the .sh/.ps1 wrappers need nothing but Python.
 """
 
@@ -88,7 +89,10 @@ def main(argv: list[str]) -> int:
                   "re-run to resume, do not skip this check", file=sys.stderr)
             return 1
         print(f"OK (downloaded, md5 verified) data/{rel}")
-    print("MANUAL (not fetched): data/thor/thor_data_vietnam.csv (data.world account required)")
+    print("MANUAL (not fetched): THOR - download THOR_Vietnam.zip (457,332,289 B) from "
+          "data.world/datamil/vietnam-war-thor-data (free account), extract with 7-Zip "
+          "(Deflate64 - Python zipfile/tar cannot): 7z e THOR_Vietnam.zip -odata/thor -> "
+          "data/thor/THOR_Vietnam_7_31_2013.csv (2,627,971,171 B)")
     print("TODO (URLs not pinned): UXOTi_NPA (Figshare 21688673), AMLID (Zenodo 18001447)")
     return 0
 
