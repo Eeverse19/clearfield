@@ -1,5 +1,6 @@
 .env
 .venv/
+.venv-sam/
 .uv-cache/
 .uv-python/
 .uv-tmp/
