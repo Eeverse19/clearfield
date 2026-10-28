@@ -14,6 +14,26 @@ for all Laos + Cambodia zones; `/zones` and `/finds` work; 32 tests pass
 so `pipelines/scoring.py` correctly scores 0. The THOR data needed to fix
 that is already on disk — only the ingestion code is missing (P0-1).
 
+**Oct 28, 2026 addendum (imagery pipeline; the audit below is otherwise
+still current):** Sentinel-2 catalog **done** — 630,318 scenes
+(Laos/Cambodia/Ukraine × L1C/L2A) in `data/sentinel2/catalog/`, counts
+verified against the STAC API (`scripts/sentinel2_catalog.py`, now
+crash-resilient per-slice). `pipelines/tiling.py` implemented (P1-1):
+Xiangkhoang pilot scene `S2B_48QUG_20260112_0_L2A` -> 191 chips.
+`pipelines/sam_segment.py` implemented (P1-2 code): SAM 3.1 local on
+RTX 3080 (`.venv-sam`), per-chip cache, masks → GeoJSON; **not run** —
+gated checkpoint `data/models/sam3.1/sam3.1_multiplex.pt` not yet
+present, and the script fails closed (recorded in `summary.json`) until
+it is. Sentinel-2 output is labelled disturbed-earth patch candidates,
+never crater counts (10 m/px; see `docs/architecture.md`). WorldStrat
+1.5 m/px benchmark chips: 77 selected (Laos 4, Cambodia 11, Ukraine 62),
+download/extract in progress (`scripts/download_worldstrat.py`,
+CC BY-NC). Live status: `scripts/dashboard.py` (127.0.0.1:8765).
+New finding for P0-1: the Barthelme paper's THOR corrections (Indian
+1960 datum ~500 m shift, B-52 SACCOACT/SEADAB dedup, weapon filtering)
+are **not** in `docs/thor/` — fold them into the spec before seeding
+(details in `docs/data-manifest.md` §4).
+
 ---
 
 ## Decisions for you (nothing here was done automatically)
@@ -88,10 +108,20 @@ that is already on disk — only the ingestion code is missing (P0-1).
 
 ## P1 — core features still stubbed
 
-- [ ] **P1-1. `pipelines/tiling.py` — imagery → 256×256 tiles. (M)**
-  Scaffold stub (`pipelines/tiling.py:1`).
-- [ ] **P1-2. `pipelines/sam_segment.py` — SAM 3.1 masks → GeoJSON, cached. (L)**
-  Scaffold stub (`pipelines/sam_segment.py:3`). "SAM sees only."
+- [x] **P1-1. `pipelines/tiling.py` — imagery → chips. — CODE + PILOT DONE
+  2026-10-28.** STAC scene selection over the profile's demo zone, COG
+  windowed reads, zone-clipped chips + manifest with per-chip
+  transform/CRS. Deviation from the original 256×256 sketch: 1024×1024
+  chips (SAM 3's processor works at 1008 px; 256 px would multiply
+  calls ~16×). Pilot: Xiangkhoang tile 48QUG, 191 chips. Generalizing
+  beyond one pinned scene is follow-up work, not a stub anymore.
+- [ ] **P1-2. `pipelines/sam_segment.py` — SAM 3.1 masks → GeoJSON, cached.
+  CODE DONE 2026-10-28, RUN BLOCKED.** Local SAM 3.1 (`.venv-sam`,
+  RTX 3080), text prompts from `docs/architecture.md`, per-(chip,prompt)
+  cache, polygonize + dedupe, `summary.json` on every run. Blocked only
+  on the gated `facebook/sam3.1` checkpoint (HF approval + file at
+  `data/models/sam3.1/`). "SAM sees only." First run: 2-chip smoke
+  (`--limit 2`), then the 191-chip scene; validate before scaling.
 - [ ] **P1-3. `field/triage.py` — offline Glimmer triage. (L)**
   Stub raising `NotImplementedError` (`field/triage.py:11`).
 - [ ] **P1-4. Report templates for Khmer and Lao. (M)**
@@ -154,7 +184,8 @@ docs/         architecture, data-manifest, demo-script, getting-started
 field/        offline triage (stub)
 frontend/     single-file map GUI, served by backend at / (P0-2 done)
 pipelines/    scoring.py (works, starved of THOR), osm_exposure.py (works),
-              tiling.py + sam_segment.py (stubs)
+              tiling.py (works, pilot scene done), sam_segment.py (works,
+              awaiting checkpoint) — Oct 28 addendum above
 scripts/      download_data.* / seed_db.* (seed_thor.* lands with P0-1)
 tests/        5 files, 32 tests, all passing
 THOR VIETNAM DATA/  DELETED 2026-10-27 (D1) — was a proven duplicate of data/thor/

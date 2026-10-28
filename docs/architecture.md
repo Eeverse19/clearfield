@@ -7,7 +7,7 @@ One job per model. If two models could do it, the cheaper / local / deterministi
 ## Pipeline
 
 ```
-Imagery + THOR ──► SAM 3.1 (Modal batch, cached) ──► masks
+Imagery + THOR ──► SAM 3.1 (local batch on RTX 3080, cached per chip) ──► masks
 Masks + THOR + OSM ──► code + PostGIS ──► ranked zones + stored components
 User question (EN/Lao/Khmer) ──► Muse Spark ──► query ──► map + explanation + report
 Field photo + GPS + notes ──► Muse Glimmer (offline) ──► find record ──► syncs to PostGIS
@@ -16,7 +16,9 @@ Field photo + GPS + notes ──► Muse Glimmer (offline) ──► find record
 ## Components
 
 ### SAM 3.1 — the eyes (perception)
-Segments bomb craters and disturbed earth in tiled imagery (KH-9 / Sentinel-2 / NICFI), prompted with text ("bomb crater", "circular depression", "disturbed earth"). Output: masks → GeoJSON polygons with area, circularity, confidence. Runs batched, once per tile, results cached in PostGIS — never re-run a tile. Must NOT decide risk, explain anything, or talk to users. A crater mask is evidence, not a verdict. The Barthelme KH-9 crater model (trained on Vietnam scenes, F1 0.61) is the baseline and validation set.
+Segments disturbed earth in tiled imagery, prompted with text ("bomb crater", "circular depression", "disturbed earth"). Output: masks → GeoJSON polygons with area, circularity, confidence. Implemented (`pipelines/sam_segment.py`, Oct 28 2026): runs **locally** in `.venv-sam` (SAM 3 code from github.com/facebookresearch/sam3, torch cu128) on an RTX 3080 16 GB — Modal is not used. The checkpoint `facebook/sam3.1/sam3.1_multiplex.pt` is gated on Hugging Face and lives at `data/models/sam3.1/` (gitignored); without it the script records the exact failure in `summary.json` and exits — it never substitutes another model. (SAM 3.1 also exists on the Meta Model API as model `sam-3.1` via `api.meta.ai/v1/responses`; that route needs a Meta Model API key, is not wired, and the local route is primary.) Results are cached per (chip, prompt, threshold, checkpoint) under `data/imagery/sam/<scene_id>/cache/` — never re-run a cached chip. Must NOT decide risk, explain anything, or talk to users. A mask is evidence, not a verdict.
+
+Resolution honesty (measured, Oct 28): at Sentinel-2 10 m/px a 5–15 m crater is ~1 pixel, so Sentinel-2 output is **disturbed-earth / crater-field patch candidates only** and must never be written as crater counts (`crater_evidence` is craters/km² from Barthelme). Individual-crater segmentation is only attempted on ~1–1.5 m/px imagery: KH-9 (Barthelme) and WorldStrat SPOT chips (1.5 m/px, CC BY-NC, 77 in-country chips, single-date 2013–2021 — a resolution benchmark, not zone evidence). The Barthelme KH-9 crater model (trained on Vietnam scenes, F1 0.61) is the baseline and validation set; its U-Net weights (`models.zip`, pinned in `scripts/download_data.py`) remain the preferred detector on KH-9 until SAM proves itself against those labels.
 
 ### Plain code + PostGIS — the scorekeeper (not a model, deliberately)
 Fuses evidence into the priority score: THOR strike density × SAM crater evidence × proximity to villages / farmland / schools / roads (OSM), minus already-surveyed status. Same inputs → same score, every time. Models explain the score; they never invent it. Output: ranked priority zones with component numbers stored alongside, so Spark can cite them.

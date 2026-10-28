@@ -2,15 +2,16 @@
 
 Target audience: a developer (or a future contributor) setting ClearField up from scratch. Estimated time once the pieces exist: ~30 minutes plus download time.
 
-> Status (Oct 27, 2026): sections 1, 2 (pinned files only), 3 (SQLite seed), 4, and 7 work today; the local DB is seeded (106 zones, 541,397 craters; OSM exposure for Laos + Cambodia). Section 5: `osm_exposure.py` + `scoring.py` work; scoring correctly scores 0 zones until THOR lands; `tiling.py`/`sam_segment.py` are still stubs. `META_API_KEY` is still to be provided. Full audit: [`../WORKFLOW_SYNTHESIS.md`](../WORKFLOW_SYNTHESIS.md).
+> Status (Oct 28, 2026): sections 1, 2 (pinned files only), 3 (SQLite seed), 4, and 7 work today; the local DB is seeded (106 zones, 541,397 craters; OSM exposure for Laos + Cambodia). Section 5: `osm_exposure.py` + `scoring.py` work; scoring correctly scores 0 zones until THOR is seeded. `tiling.py` is implemented (Sentinel-2 L2A scene → 1024 px chips; Xiangkhoang pilot scene done, 191 chips) and `sam_segment.py` is implemented (SAM 3.1 local, per-chip cache) but has not run: the gated `facebook/sam3.1` checkpoint is not yet in `data/models/sam3.1/`. The Sentinel-2 catalog is complete (630,318 scenes, Laos/Cambodia/Ukraine, L1C+L2A); WorldStrat HR extraction (77 chips) is in progress. Monitor everything at http://127.0.0.1:8765/ (`scripts/dashboard.py`). `META_API_KEY` is still to be provided (Spark only; SAM runs locally without it). Full audit: [`../WORKFLOW_SYNTHESIS.md`](../WORKFLOW_SYNTHESIS.md) (Oct 27, pre-imagery-pipeline).
 
 ## Prerequisites
 
 - Python 3.11+ via `uv` (manages the project-local `.venv`; on this Windows machine `uv sync` is the only setup step)
 - PostgreSQL 15+ with PostGIS (target DB; the scaffold runs on the SQLite mirror in `db/schema.local.sql` first)
-- A Meta Model API key (dev.meta.ai) for Spark + SAM 3.1 — put it in `.env`, never in code
-- ~1 GB free disk for today's footprint (seeded DB ≈826 MB + predictions.zip 48 MB); ~8 GB if Barthelme `data.zip`/`models.zip` and THOR are also fetched
-- Optional: Modal account (SAM batch runs), a GPU machine for local Glimmer testing
+- A Meta Model API key (dev.meta.ai) for Spark — put it in `.env`, never in code. SAM 3.1 does **not** need it: SAM runs locally (below). (The Meta Model API also hosts `sam-3.1`, but that route is not wired.)
+- For SAM locally: an NVIDIA GPU (tested: RTX 3080 Laptop 16 GB, CUDA 12.8+ driver), Python 3.12 for the separate `.venv-sam` env, a Hugging Face account approved for the gated `facebook/sam3.1` checkpoint, and ~10 GB for env + checkpoint (~3.4 GB)
+- ~1 GB free disk for today's footprint (seeded DB ≈826 MB + predictions.zip 48 MB); ~8 GB if Barthelme `data.zip`/`models.zip` and THOR are also fetched; the WorldStrat HR tar is a 41.5 GB transient (MD5-verified, extracted, then deleted by `scripts/download_worldstrat.py`)
+- Optional: a GPU machine for local Glimmer testing (Modal is not used anywhere)
 
 ## 1. Clone and configure
 
@@ -59,9 +60,16 @@ start frontend/index.html
 
 ## 5. Run the pipelines (in order)
 
-```bash
-uv run python pipelines/tiling.py --country laos        # stub: imagery -> 256x256 tiles
-uv run python pipelines/sam_segment.py --country laos   # stub: SAM 3.1 -> masks -> GeoJSON, cached
+```powershell
+# Imagery chain (Oct 28; all outputs under data/, gitignored; monitor via scripts/dashboard.py)
+py -3.12 scripts/sentinel2_catalog.py                # Sentinel-2 catalog (done: 630,318 scenes)
+py -3.12 scripts/download_worldstrat.py              # WorldStrat HR 1.5 m/px chips (77, CC BY-NC)
+# SAM env (once): py -3.12 -m venv .venv-sam; then the installs in pipelines/sam_segment.py docstring
+.venv-sam\Scripts\python.exe pipelines\tiling.py --country laos --mgrs-tile 48QUG
+#   -> data/imagery/tiles/S2B_48QUG_20260112_0_L2A/ (191 chips; Sentinel-2 = disturbed-earth patches only)
+.venv-sam\Scripts\python.exe pipelines\sam_segment.py --country laos --manifest data\imagery\tiles\S2B_48QUG_20260112_0_L2A\manifest.json --checkpoint data\models\sam3.1\sam3.1_multiplex.pt
+#   -> data/imagery/sam/<scene_id>/detections.geojson (blocked until the checkpoint file exists)
+
 uv run python pipelines/osm_exposure.py --country laos   # works: OSM features/km2 -> zones.exposure
 uv run python pipelines/scoring.py --country laos       # works: deterministic ranking -> local DB (0 scored until THOR)
 # Repeat with --country cambodia. Same code path — that is the portability proof.
@@ -95,6 +103,7 @@ Scoring is deterministic, so it gets unit tests first: same inputs → same scor
 |---|---|
 | Checksum failure in `download_data` | Partial download — re-run; downloads resume. If it persists, the source file changed; update the manifest, don't skip the check. |
 | Scoring prints `0/N zones scored` | Expected until THOR (`strike_density`) and OSM (`exposure`) are seeded — a NULL component means unscorable, never an imputed 0. |
-| `SAM` calls slow / rate-limited | Demo provinces are pre-computed and cached; live API is only for one tile. See `docs/demo-script.md`. |
+| `sam_segment.py` exits 2 with a checkpoint failure in `summary.json` | Expected until the gated checkpoint lands: request access at huggingface.co/facebook/sam3.1, `hf auth login`, place `sam3.1_multiplex.pt` in `data/models/sam3.1/`. The failure is recorded verbatim in `data/imagery/sam/<scene_id>/summary.json`; no substitute model is used. |
+| WorldStrat download stalls / MD5 mismatch | The Zenodo stream truncates silently on long downloads; `download_worldstrat.py` now verifies length and auto-resumes (max 20 attempts), and only extracts after the MD5 matches. Re-run it; the tar resumes. |
 | Glimmer slow on a laptop | Check GPU offload (`llama.cpp` layer count) and context size (4K) — see `field/prompts/README.md` when it lands. Below ~12 tok/s, use the pre-recorded triage clip. |
 | Scores change after a data reload | A component column was dropped or a profile filter changed — diff the profile and the seed script before trusting new numbers. |

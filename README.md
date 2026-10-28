@@ -2,7 +2,7 @@
 
 **A clearance-prioritization platform for bombed countries.** ClearField fuses declassified bombing records with satellite imagery and human geography to rank which land should be surveyed and cleared first, explains every ranking in plain language, and lets field workers record new finds offline — built once, reusable in any bombed country by swapping a data profile.
 
-> Project status: scaffold + first data tranche (Oct 27, 2026). In place and tested: repo structure, country profiles, schemas, deterministic scoring, `/zones` + `/finds` over the local DB, and a seeded database (106 GADM zones; 541,397 real Barthelme craters; 9 zones with crater evidence; OSM exposure computed for all 18 Laos + 25 Cambodia zones by `pipelines/osm_exposure.py`). No zone is rankable yet — strike density (THOR) has not landed, so scoring still correctly scores 0 zones; `META_API_KEY` is still to be provided, and there are no live model calls. Barthelme coverage (lat 14.17–17.03) does not reach the Laos demo province Xiangkhoang. Details: [`WORKFLOW_SYNTHESIS.md`](WORKFLOW_SYNTHESIS.md). This README describes the target state.
+> Project status: scaffold + first data tranche + imagery pipeline (Oct 28, 2026). In place and tested: repo structure, country profiles, schemas, deterministic scoring, `/zones` + `/finds` over the local DB, and a seeded database (106 GADM zones; 541,397 real Barthelme craters; 9 zones with crater evidence; OSM exposure computed for all 18 Laos + 25 Cambodia zones by `pipelines/osm_exposure.py`). **Imagery (new Oct 28):** the full Sentinel-2 archive is catalogued for Laos, Cambodia and Ukraine — 630,318 scenes (L1C+L2A, 2015–2026) via `scripts/sentinel2_catalog.py`, catalog only, no bulk imagery; `pipelines/tiling.py` has produced 191 chips from a 0%-cloud scene over Xiangkhoang; `pipelines/sam_segment.py` (SAM 3.1, local RTX 3080) is implemented and cached-per-chip but **has not run yet** — it waits on the gated `facebook/sam3.1` checkpoint (`data/models/sam3.1/sam3.1_multiplex.pt`, not yet present). WorldStrat 1.5 m/px chips for the 3 countries (77 selected) are downloading (`scripts/download_worldstrat.py`, CC BY-NC, benchmark use only). Live stage/GPU/log monitoring: `scripts/dashboard.py` → http://127.0.0.1:8765/. No zone is rankable yet — strike density (THOR) has not been seeded, so scoring still correctly scores 0 zones; `META_API_KEY` is still to be provided for Spark. Barthelme coverage (lat 14.17–17.03) does not reach the Laos demo province Xiangkhoang. Details: [`WORKFLOW_SYNTHESIS.md`](WORKFLOW_SYNTHESIS.md) (Oct 27 audit) and `TASKS.md`. This README describes the target state.
 
 ## The problem
 
@@ -17,7 +17,8 @@ Laos is the most heavily bombed country per capita in history — 1,041,519 reco
 ## How it works
 
 ```
-THOR + imagery + OSM ──► SAM 3.1 segments craters (cached, never re-run)
+THOR + imagery + OSM ──► SAM 3.1 segments disturbed-earth patches (Sentinel-2) /
+                        crater candidates (KH-9, 1.5 m WorldStrat) — local, cached, never re-run
                       ──► PostGIS code scores zones (deterministic)
                       ──► Muse Spark explains + reports (EN / Lao / Khmer)
 Field photo + GPS ────► Muse Glimmer, offline ──► record syncs to PostGIS
@@ -27,7 +28,7 @@ One job per model: **SAM sees, code scores, Spark explains, Glimmer captures off
 
 ## Multi-country by design
 
-Country is a configuration, never code. Everything country-specific lives in one profile under [`countries/`](countries/) (strike source/filter, imagery set, boundaries, OSM extract, stats source, languages). Demo scope: **Laos (Xiangkhoang) + Cambodia (Tbong Khmum)**. Cambodia and Vietnam are nearly free (same THOR file, same ordnance); WWII Europe needs re-validation; modern conflicts (Ukraine, Colombia, Angola, Bosnia) swap in UCDP/ACLED + UNOSAT data.
+Country is a configuration, never code. Everything country-specific lives in one profile under [`countries/`](countries/) (strike source/filter, imagery set, boundaries, OSM extract, stats source, languages). Demo scope: **Laos (Xiangkhoang) + Cambodia (Tbong Khmum)**. Cambodia and Vietnam are nearly free (same THOR file, same ordnance); WWII Europe needs re-validation; modern conflicts (Ukraine, Colombia, Angola, Bosnia) swap in UCDP/ACLED + UNOSAT data. Ukraine today is catalogued by GADM geometry for Sentinel-2/WorldStrat only — it deliberately has no `countries/` profile, strike source, or zones yet.
 
 ## What it is not
 
@@ -50,11 +51,17 @@ uv run pytest
 uv run uvicorn backend.app.main:app --reload   # API on :8000, open frontend/index.html
 uv run python pipelines/scoring.py --country laos   # scores 0 until THOR lands (by design)
 # DB target schema: db/schema.sql (PostGIS); runtime today: db/schema.local.sql (SQLite).
+# Imagery pipeline (Oct 28): catalog -> chips -> SAM, all under data/ (gitignored)
+py -3.12 scripts/sentinel2_catalog.py               # done: 630,318 scenes -> data/sentinel2/catalog/
+py -3.12 scripts/download_worldstrat.py             # 77 HR chips -> data/worldstrat/ (CC BY-NC)
+py -3.12 scripts/dashboard.py                       # live monitor: http://127.0.0.1:8765/
+.venv-sam\Scripts\python.exe pipelines\tiling.py --country laos --mgrs-tile 48QUG  # -> 191 chips
+.venv-sam\Scripts\python.exe pipelines\sam_segment.py --country laos --manifest data\imagery\tiles\S2B_48QUG_20260112_0_L2A\manifest.json --checkpoint data\models\sam3.1\sam3.1_multiplex.pt  # blocked until the checkpoint file exists
 ```
 
 ## Data
 
-All datasets are public and reproduced by [`scripts/download_data.sh`](scripts/download_data.sh) (Python implementation, `.ps1` twin); nothing under `data/` is committed. Barthelme files are MD5-verified; GADM publishes no checksum (local MD5s recorded in the manifest). Barthelme and OSM (Geofabrik) downloads are pinned and MD5-checked; THOR, UXOTi_NPA, and AMLID are not pinned yet. Sources and licenses: [`docs/data-manifest.md`](docs/data-manifest.md).
+All datasets are public and reproduced by [`scripts/download_data.sh`](scripts/download_data.sh) (Python implementation, `.ps1` twin); nothing under `data/` is committed. Barthelme files are MD5-verified; GADM publishes no checksum (local MD5s recorded in the manifest). Barthelme and OSM (Geofabrik) downloads are pinned and MD5-checked; THOR, UXOTi_NPA, and AMLID are not pinned yet. The Sentinel-2 catalog (630,318 scenes, counts verified against the STAC API) is reproduced by `scripts/sentinel2_catalog.py`; WorldStrat HR chips (77, CC BY-NC 4.0, single-date 2013–2021 — pre-war for Ukraine, benchmark only) by `scripts/download_worldstrat.py`. Sources and licenses: [`docs/data-manifest.md`](docs/data-manifest.md).
 
 ## Demo
 
