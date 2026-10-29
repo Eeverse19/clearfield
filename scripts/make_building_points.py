@@ -32,6 +32,7 @@ def main(argv=None) -> int:
 
     location = LOCATIONS[args.country]
     dest_dir = BUILDINGS_DIR / location
+    dest_dir.mkdir(parents=True, exist_ok=True)
     shards = download_shards(args.country)
     points = array.array("f")
     for lon, lat in iter_centroids(shards):

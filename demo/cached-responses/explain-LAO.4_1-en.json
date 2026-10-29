@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "kind": "explain",
+  "zone_id": "LAO.4_1",
+  "country": "laos",
+  "admin_name": "Champasak",
+  "lang": "en",
+  "explanation": "Champasak (LAO.4_1, laos) is ranked #2 with priority score 0.0426503. Its stored score components are strike density 1.02656 recorded missions/km² (USAF THOR records), crater evidence 0.247467 craters/km² (KH-9 imagery crater predictions), and exposure 12.2496 OSM features/km² (OpenStreetMap). Surveyed status: unsurveyed. The score was computed by pipelines/scoring.py at 2026-10-28T18:22:41.166149+00:00; this cached explanation only restates those stored values and is not a live model answer.",
+  "score_components": {
+    "strike_density": 1.0265571746510196,
+    "crater_evidence": 0.24746699285311485,
+    "exposure": 12.249616146229185,
+    "surveyed_status": "unsurveyed",
+    "priority_score": 0.04265026637882703,
+    "priority_rank": 2,
+    "scored_at": "2026-10-28T18:22:41.166149+00:00"
+  },
+  "origin": "template_from_stored_components",
+  "generated_from": "stored score components only (pipelines/scoring.py); no live model"
+}

@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "kind": "explain",
+  "zone_id": "LAO.12_1",
+  "country": "laos",
+  "admin_name": "Savannakhét",
+  "lang": "en",
+  "explanation": "Savannakhét (LAO.12_1, laos) is ranked #4 with priority score 0.000118114. Its stored score components are strike density 15.8286 recorded missions/km² (USAF THOR records), crater evidence 0.000420062 craters/km² (KH-9 imagery crater predictions), and exposure 1.56679 OSM features/km² (OpenStreetMap). Surveyed status: unsurveyed. The score was computed by pipelines/scoring.py at 2026-10-28T18:22:41.166149+00:00; this cached explanation only restates those stored values and is not a live model answer.",
+  "score_components": {
+    "strike_density": 15.828596941270083,
+    "crater_evidence": 0.00042006219509524483,
+    "exposure": 1.5667853141280303,
+    "surveyed_status": "unsurveyed",
+    "priority_score": 0.00011811397826133691,
+    "priority_rank": 4,
+    "scored_at": "2026-10-28T18:22:41.166149+00:00"
+  },
+  "origin": "template_from_stored_components",
+  "generated_from": "stored score components only (pipelines/scoring.py); no live model"
+}

@@ -6,6 +6,7 @@ event loop behind TestClient needs for its self-pipe. Direct calls cover the
 handlers; ASGI routing tests can switch to TestClient in CI.
 """
 
+import json
 import sqlite3
 from pathlib import Path
 
@@ -13,7 +14,8 @@ import pytest
 from fastapi import HTTPException
 
 from backend.app import config
-from backend.app.main import (countries, country, create_find, explain,
+from backend.app.main import (build_cached_explanation, countries, country,
+                              create_find, explain, explain_request,
                               get_buildings, health, index, list_zones)
 
 SCHEMA = Path(__file__).resolve().parents[1] / "db" / "schema.local.sql"
@@ -137,8 +139,188 @@ def test_buildings_points_bbox_and_missing(tmp_path):
     assert status_of(lambda: get_buildings("laos", bbox="bad", buildings_dir=tmp_path)) == 422
 
 
-def test_explain_still_honest_501():
-    assert status_of(explain) == 501
+# --- /explain (cache-first) -------------------------------------------------
+# Fixture row for LAO.1_1 as make_db stores it (nulls are legal in the
+# cache format; only the generator refuses to seed unranked/unscorable rows).
+EXPLAIN_ROW = {"id": "LAO.1_1", "country": "laos", "admin_name": "A",
+               "strike_density": None, "crater_evidence": 2.14,
+               "exposure": None, "surveyed_status": "unsurveyed",
+               "priority_score": 0.9, "priority_rank": 1, "scored_at": None}
+
+
+def make_cache(tmp_path, payload=None):
+    path = tmp_path / "explain-LAO.1_1-en.json"
+    data = build_cached_explanation(dict(EXPLAIN_ROW)) if payload is None else payload
+    path.write_text(json.dumps(data, ensure_ascii=False, indent=2),
+                    encoding="utf-8")
+    return tmp_path
+
+
+def explain_exc(payload, **kwargs):
+    with pytest.raises(HTTPException) as exc:
+        explain_request(payload, **kwargs)
+    return exc.value
+
+
+def test_explain_cache_hit_no_key(tmp_path, monkeypatch):
+    monkeypatch.setattr(config, "META_API_KEY", "")  # hit must need no key
+    db = make_db(tmp_path)
+    cached_dir = tmp_path / "cache"
+    cached_dir.mkdir()
+    make_cache(cached_dir)
+    out = explain_request({"zone_id": "LAO.1_1"}, db_path=db,
+                          cached_dir=cached_dir)
+    assert set(out) == {"zone_id", "country", "admin_name", "lang",
+                        "requested_lang", "source", "origin", "explanation",
+                        "score_components"}
+    assert (out["zone_id"], out["country"], out["admin_name"]) == \
+        ("LAO.1_1", "laos", "A")
+    assert out["source"] == "cache"
+    assert out["origin"] == "template_from_stored_components"
+    assert out["lang"] == out["requested_lang"] == "en"
+    assert out["score_components"] == {
+        "strike_density": None, "crater_evidence": 2.14, "exposure": None,
+        "surveyed_status": "unsurveyed", "priority_score": 0.9,
+        "priority_rank": 1, "scored_at": None}
+    # utf-8 read on Windows: the template's km² must not arrive as mojibake.
+    assert "km²" in out["explanation"] and "Â" not in out["explanation"]
+    # Explicit matching country is accepted too.
+    out2 = explain_request({"zone_id": "LAO.1_1", "country": "laos"},
+                           db_path=db, cached_dir=cached_dir)
+    assert out2["zone_id"] == "LAO.1_1"
+
+
+def test_explain_en_fallback_is_labeled(tmp_path):
+    db = make_db(tmp_path)
+    cached_dir = tmp_path / "cache"
+    cached_dir.mkdir()
+    make_cache(cached_dir)
+    out = explain_request({"zone_id": "LAO.1_1", "lang": "lo"},
+                          db_path=db, cached_dir=cached_dir)
+    assert out["lang"] == "en" and out["requested_lang"] == "lo"
+    out = explain_request({"zone_id": "LAO.1_1", "lang": " KM "},
+                          db_path=db, cached_dir=cached_dir)
+    assert out["lang"] == "en" and out["requested_lang"] == "km"
+
+
+def test_explain_miss_still_501(tmp_path, monkeypatch):
+    db = make_db(tmp_path)
+    empty = tmp_path / "empty"
+    empty.mkdir()
+    monkeypatch.setattr(config, "META_API_KEY", "")
+    exc = explain_exc({"zone_id": "LAO.1_1"}, db_path=db, cached_dir=empty)
+    assert exc.status_code == 501
+    assert exc.detail == ("explain not implemented: META_API_KEY not set "
+                          "(Spark runs on stored score components only)")
+    monkeypatch.setattr(config, "META_API_KEY", "x")
+    exc = explain_exc({"zone_id": "LAO.1_1"}, db_path=db, cached_dir=empty)
+    assert exc.status_code == 501
+    assert exc.detail == "explain not implemented: Spark agent not wired yet"
+    # An unseeded (unranked) zone is a miss, not a special case.
+    monkeypatch.setattr(config, "META_API_KEY", "")
+    exc = explain_exc({"zone_id": "LAO.3_1"}, db_path=db, cached_dir=empty)
+    assert exc.status_code == 501
+
+
+def test_explain_stale_cache_is_miss(tmp_path, monkeypatch):
+    monkeypatch.setattr(config, "META_API_KEY", "")
+    db = make_db(tmp_path)
+    cached_dir = tmp_path / "cache"
+    cached_dir.mkdir()
+    payload = build_cached_explanation(dict(EXPLAIN_ROW))
+    payload["score_components"] = {**payload["score_components"],
+                                    "priority_score": 0.123}
+    make_cache(cached_dir, payload)
+    exc = explain_exc({"zone_id": "LAO.1_1"}, db_path=db, cached_dir=cached_dir)
+    assert exc.status_code == 501  # re-scored zone never serves old numbers
+
+
+def test_explain_malformed_cache_503(tmp_path):
+    db = make_db(tmp_path)
+    cached_dir = tmp_path / "cache"
+    cached_dir.mkdir()
+    path = cached_dir / "explain-LAO.1_1-en.json"
+    good = build_cached_explanation(dict(EXPLAIN_ROW))
+    variants = [
+        "{not json",
+        json.dumps(["not", "an", "object"]),
+        json.dumps({**good, "zone_id": "LAO.2_1"}),
+        json.dumps({**good, "admin_name": "Renamed"}),
+        json.dumps({**good, "explanation": "hand-written text"}),
+        json.dumps({**good, "score_components": {
+            **good["score_components"], "strike_density": True}}),
+        json.dumps({**good, "score_components": {
+            **good["score_components"], "priority_rank": True}}),
+        json.dumps({k: v for k, v in good.items() if k != "origin"}),
+    ]
+    for text in variants:
+        path.write_text(text, encoding="utf-8")
+        exc = explain_exc({"zone_id": "LAO.1_1"}, db_path=db,
+                          cached_dir=cached_dir)
+        assert exc.status_code == 503, text
+
+
+def test_explain_validation(tmp_path):
+    db = make_db(tmp_path)
+    cases = [
+        ("nope", 422), ([], 422), (None, 422),
+        ({}, 422),
+        ({"zone_id": "LAO.1_1", "surprise": 1}, 422),
+        ({"zone_id": ""}, 422), ({"zone_id": "   "}, 422),
+        ({"zone_id": 123}, 422), ({"zone_id": None}, 422),
+        ({"zone_id": "lao.1_1"}, 422),
+        ({"zone_id": "LAO.1_1", "lang": "fr"}, 422),
+        ({"zone_id": "LAO.1_1", "lang": ""}, 422),
+        ({"zone_id": "LAO.1_1", "lang": 5}, 422),
+        ({"zone_id": "LAO.1_1", "lang": None}, 422),
+        ({"zone_id": "LAO.99_1"}, 422),  # unknown zone
+        ({"zone_id": "KHM.1_1", "country": "laos"}, 422),  # other country
+        ({"zone_id": "LAO.1_1", "country": "narnia"}, 404),
+        ({"zone_id": "LAO.1_1", "country": ""}, 422),
+        ({"zone_id": "LAO.1_1", "country": 5}, 422),
+        ({"zone_id": "LAO.1_1", "country": None}, 422),
+    ]
+    for payload, want in cases:
+        exc = explain_exc(payload, db_path=db, cached_dir=tmp_path)
+        assert exc.status_code == want, payload
+    exc = explain_exc({"zone_id": "LAO.1_1"},
+                      db_path=tmp_path / "missing.db", cached_dir=tmp_path)
+    assert exc.status_code == 503
+
+
+def test_explain_traversal_rejected(tmp_path):
+    db = make_db(tmp_path)
+    cached_dir = tmp_path / "cache"
+    cached_dir.mkdir()
+    sentinel = tmp_path / "secret.json"
+    sentinel.write_text('{"explanation": "SENTINEL"}', encoding="utf-8")
+    bad_zones = ["../LAO.1_1", "LAO.1_1/../../x", "..\\x", "/etc/passwd",
+                 "LAO.1_1%2f..", "LAO.1_1\x00", "LAO.1_1 ", "..\\..\\secret"]
+    for zone_id in bad_zones:
+        exc = explain_exc({"zone_id": zone_id}, db_path=db,
+                          cached_dir=cached_dir)
+        assert exc.status_code == 422, zone_id
+    exc = explain_exc({"zone_id": "LAO.1_1", "lang": "../en"},
+                      db_path=db, cached_dir=cached_dir)
+    assert exc.status_code == 422
+    # Country is never a filesystem path: traversal shapes are 422, not 500.
+    for country in ("LAOS", "../countries/laos", "..\\countries\\laos",
+                    "C:/clearfield/countries/laos", "laos.json"):
+        exc = explain_exc({"zone_id": "LAO.1_1", "country": country},
+                          db_path=db, cached_dir=cached_dir)
+        assert exc.status_code == 422, country
+    assert sentinel.read_text(encoding="utf-8") == '{"explanation": "SENTINEL"}'
+
+
+def test_explain_wrapper_delegates(monkeypatch):
+    # The ASGI wrapper must pass the body through (old zero-arg form is gone).
+    monkeypatch.setattr("backend.app.main.explain_request",
+                        lambda payload: {"echo": payload})
+    assert explain({"zone_id": "LAO.1_1"}) == {"echo": {"zone_id": "LAO.1_1"}}
+
+
+
+
 
 
 def test_index_serves_frontend_gui():

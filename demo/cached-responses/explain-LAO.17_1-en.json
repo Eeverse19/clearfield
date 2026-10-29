@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "kind": "explain",
+  "zone_id": "LAO.17_1",
+  "country": "laos",
+  "admin_name": "Xékong",
+  "lang": "en",
+  "explanation": "Xékong (LAO.17_1, laos) is ranked #3 with priority score 0.0130581. Its stored score components are strike density 10.3587 recorded missions/km² (USAF THOR records), crater evidence 0.0288087 craters/km² (KH-9 imagery crater predictions), and exposure 4.99133 OSM features/km² (OpenStreetMap). Surveyed status: unsurveyed. The score was computed by pipelines/scoring.py at 2026-10-28T18:22:41.166149+00:00; this cached explanation only restates those stored values and is not a live model answer.",
+  "score_components": {
+    "strike_density": 10.358717913055413,
+    "crater_evidence": 0.028808749735117645,
+    "exposure": 4.9913250837752585,
+    "surveyed_status": "unsurveyed",
+    "priority_score": 0.013058051643634173,
+    "priority_rank": 3,
+    "scored_at": "2026-10-28T18:22:41.166149+00:00"
+  },
+  "origin": "template_from_stored_components",
+  "generated_from": "stored score components only (pipelines/scoring.py); no live model"
+}

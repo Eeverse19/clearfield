@@ -1,17 +1,22 @@
 """ClearField API.
 
 Implemented: health, country profiles, GET /zones and POST /finds over the
-local SQLite DB (WORKFLOW_SYNTHESIS.md section 3). Not implemented: /explain
-(needs META_API_KEY + Spark wiring) — it keeps returning 501 with the reason.
+local SQLite DB (WORKFLOW_SYNTHESIS.md section 3). /explain is cache-first:
+seeded templates over stored score components (no META_API_KEY needed),
+501 only on a cache miss; live Spark is still not wired.
 Nothing here invents zones, scores, or explanations; missing DB is 503.
-Handlers (list_zones/create_find) are plain functions so tests can call them
+Handlers (list_zones/create_find/explain_request) are plain functions so tests can call them
 directly with a tmp DB (sandboxed shells cannot open TestClient sockets).
 """
 
 import array
+import math
+import re
+
 import json
 import sqlite3
 from datetime import datetime, timezone
+from pathlib import Path
 
 from fastapi import Body, FastAPI, HTTPException
 from fastapi.responses import FileResponse, JSONResponse, Response
@@ -39,6 +44,27 @@ FIND_FIELDS = ("id", "country", "zone_id", "object_type", "condition",
                "recorded_at")
 DB_MISSING = ("local DB unavailable (CLEARFIELD_LOCAL_DB="
               f"{config.LOCAL_DB_PATH}); run scripts/seed_db.ps1 first")
+
+# --- /explain (cache-first; see demo/cached-responses/README.md) -----------
+EXPLAIN_FIELDS = ("zone_id", "country", "lang")
+# Union of countries/*.json languages; deliberately not restricted
+# per-country so a Laos zone can be asked about in Khmer (demo Moment 2).
+EXPLAIN_LANGS = ("en", "lo", "km", "vi")
+ZONE_ID_RE = re.compile(r"^[A-Z]{3}\.[0-9]+_[0-9]+$")  # GADM GID_1 shape
+# Country ids are lowercase profile stems (laos/cambodia/vietnam). Anything
+# else is malformed input, never a filesystem path (critic defect 1).
+COUNTRY_ID_RE = re.compile(r"^[a-z]+$")
+EXPLAIN_ORIGIN = "template_from_stored_components"
+EXPLAIN_GENERATED_FROM = ("stored score components only "
+                          "(pipelines/scoring.py); no live model")
+EXPLAIN_COMPONENT_FIELDS = ("strike_density", "crater_evidence", "exposure",
+                            "surveyed_status", "priority_score",
+                            "priority_rank", "scored_at")
+EXPLAIN_NUMERIC_FIELDS = ("strike_density", "crater_evidence", "exposure",
+                          "priority_score")
+EXPLAIN_FILE_FIELDS = ("schema_version", "kind", "zone_id", "country",
+                       "admin_name", "lang", "explanation",
+                       "score_components", "origin", "generated_from")
 
 
 def _country_or_404(country_id: str) -> dict:
@@ -270,11 +296,225 @@ def post_finds(payload: dict = Body(...)):
     return record
 
 
-@app.post("/explain")
-def explain() -> dict:
-    if not config.META_API_KEY:
+def _fmt_component(value) -> str:
+    return format(value, ".6g") if isinstance(value, (int, float)) \
+        and not isinstance(value, bool) else "not stored"
+
+
+def render_explanation(row: dict) -> str:
+    """Frozen English template over one stored zone row (Spec 6).
+
+    Shared by scripts/make_cached_explanations.py (writer) and
+    tests/test_cached_explanations.py (verifier) so seeded text can never
+    drift from the stored components it cites. Only stored values appear;
+    normalized components exist only in memory (pipelines/scoring.py).
+    """
+    return (
+        f"{row['admin_name']} ({row['id']}, {row['country']}) is ranked "
+        f"#{row['priority_rank']} with priority score "
+        f"{_fmt_component(row['priority_score'])}. Its stored score "
+        f"components are strike density "
+        f"{_fmt_component(row['strike_density'])} recorded missions/km² "
+        f"(USAF THOR records), crater evidence "
+        f"{_fmt_component(row['crater_evidence'])} craters/km² (KH-9 "
+        f"imagery crater predictions), and exposure "
+        f"{_fmt_component(row['exposure'])} OSM features/km² "
+        f"(OpenStreetMap). Surveyed status: {row['surveyed_status']}. "
+        f"The score was computed by pipelines/scoring.py at "
+        f"{row['scored_at']}; this cached explanation only restates those "
+        f"stored values and is not a live model answer.")
+
+
+def build_cached_explanation(row: dict, lang: str = "en") -> dict:
+    """The exact on-disk payload for one (zone, lang) cache file."""
+    return {
+        "schema_version": 1,
+        "kind": "explain",
+        "zone_id": row["id"],
+        "country": row["country"],
+        "admin_name": row["admin_name"],
+        "lang": lang,
+        "explanation": render_explanation(row),
+        "score_components": {f: row[f] for f in EXPLAIN_COMPONENT_FIELDS},
+        "origin": EXPLAIN_ORIGIN,
+        "generated_from": EXPLAIN_GENERATED_FROM,
+    }
+
+
+
+def _cached_explain_path(cached_dir, zone_id: str, lang: str) -> Path:
+    root = Path(cached_dir) if cached_dir is not None \
+        else config.CACHED_RESPONSES_DIR
+    # Built only from the regex-validated zone_id + allowlisted lang;
+    # the resolve check is defense in depth (Spec 5).
+    path = root / f"explain-{zone_id}-{lang}.json"
+    if path.resolve().parent != root.resolve():
+        raise HTTPException(status_code=422,
+                            detail=f"invalid zone_id: {zone_id!r}")
+    return path
+
+
+def _is_stored_number(value) -> bool:
+    # bool is rejected for every numeric component (critic defect 5,
+    # mirroring pipelines/scoring.py): JSON true must never equal 1.0.
+    return value is None or (isinstance(value, (int, float))
+                              and not isinstance(value, bool)
+                              and math.isfinite(value))
+
+
+def _load_cached_explain(cached_dir, zone_row: dict, lang: str):
+    """Validated cache payload, or None for absent/stale (a miss).
+
+    A file that exists but is malformed is a server data fault (503):
+    never served and never silently treated as a miss.
+    """
+    path = _cached_explain_path(cached_dir, zone_row["id"], lang)
+    if not path.exists():
+        return None
+
+    def unreadable():
+        return HTTPException(
+            status_code=503,
+            detail=f"cached explanation unreadable: {path.name}")
+
+    try:
+        # utf-8 is pinned: seeded names/km² are non-ASCII and the Windows
+        # default (cp1252) would serve mojibake (critic defect 2).
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError):
+        raise unreadable()
+    if not isinstance(data, dict) or set(data) != set(EXPLAIN_FILE_FIELDS):
+        raise unreadable()
+    if type(data["schema_version"]) is not int \
+            or data["schema_version"] != 1 \
+            or data["kind"] != "explain" \
+            or data["origin"] != EXPLAIN_ORIGIN \
+            or data["generated_from"] != EXPLAIN_GENERATED_FROM:
+        raise unreadable()
+    if data["zone_id"] != zone_row["id"] \
+            or data["country"] != zone_row["country"] \
+            or data["admin_name"] != zone_row["admin_name"] \
+            or data["lang"] != lang:
+        raise unreadable()
+    if not isinstance(data["explanation"], str) or not data["explanation"]:
+        raise unreadable()
+    components = data["score_components"]
+    if not isinstance(components, dict) \
+            or set(components) != set(EXPLAIN_COMPONENT_FIELDS):
+        raise unreadable()
+    if any(not _is_stored_number(components[f])
+           for f in EXPLAIN_NUMERIC_FIELDS):
+        raise unreadable()
+    rank = components["priority_rank"]
+    if rank is not None and (isinstance(rank, bool)
+                             or not isinstance(rank, int)):
+        raise unreadable()
+    if components["surveyed_status"] not in SURVEYED_STATUSES:
+        raise unreadable()
+    if components["scored_at"] is not None \
+            and not isinstance(components["scored_at"], str):
+        raise unreadable()
+    # English text must be exactly the frozen template over the current
+    # DB row, so renamed zones / hand-edited text are never served as
+    # fact (critic defect 4). No non-en template exists yet.
+    if lang == "en" and data["explanation"] != render_explanation(zone_row):
+        raise unreadable()
+    current = {f: zone_row[f] for f in EXPLAIN_COMPONENT_FIELDS}
+    if components != current:
+        return None  # stale: re-scored since seeding -> miss, never old text
+    return data
+
+
+def explain_request(payload, db_path=None, cached_dir=None) -> dict:
+    """Cache-first /explain handler (plain function, mirroring create_find).
+
+    Statuses: 200 cache hit; 501 cache miss (live Spark unwired, with or
+    without META_API_KEY); 422 malformed input / traversal-shaped ids /
+    unknown zone; 404 unknown country; 503 DB missing or malformed cache
+    file. The cache is checked before META_API_KEY, so a hit needs no key.
+    """
+    if not isinstance(payload, dict):
+        raise HTTPException(status_code=422,
+                            detail="payload must be a JSON object")
+    extra = set(payload) - set(EXPLAIN_FIELDS)
+    if extra:
+        raise HTTPException(status_code=422,
+                            detail=f"unknown fields: {sorted(extra)}")
+    if "zone_id" not in payload:
+        raise HTTPException(status_code=422, detail="zone_id is required")
+    zone_id = payload["zone_id"]
+    if not isinstance(zone_id, str) or not zone_id.strip() \
+            or not ZONE_ID_RE.fullmatch(zone_id):
+        raise HTTPException(status_code=422,
+                            detail=f"invalid zone_id: {zone_id!r}")
+    country = payload.get("country")
+    if "country" in payload:
+        if not isinstance(country, str) or not country \
+                or not COUNTRY_ID_RE.fullmatch(country):
+            raise HTTPException(status_code=422,
+                                detail=f"invalid country: {country!r}")
+        try:
+            _country_or_404(country)
+        except ValueError:  # malformed profile must never surface as 500
+            raise HTTPException(status_code=404,
+                                detail=f"unknown country: {country}")
+    lang = payload.get("lang", "en")
+    if not isinstance(lang, str):
+        raise HTTPException(status_code=422, detail=f"invalid lang: {lang!r}")
+    requested_lang = lang.strip().lower()
+    if requested_lang not in EXPLAIN_LANGS:
+        raise HTTPException(status_code=422, detail=f"invalid lang: {lang!r}")
+
+    sql = ("SELECT id, country, admin_name, strike_density, "
+           "crater_evidence, exposure, surveyed_status, priority_score, "
+           "priority_rank, scored_at FROM zones WHERE id = ?")
+    params = [zone_id]
+    if country is not None:
+        sql += " AND country = ?"
+        params.append(country)
+    conn = _conn_or_503(db_path, readonly=True)
+    try:
+        row = conn.execute(sql, params).fetchone()
+    except sqlite3.Error:
+        raise HTTPException(status_code=503, detail=DB_MISSING)
+    finally:
+        conn.close()
+    if row is None:
+        if country is not None:
+            raise HTTPException(
+                status_code=422,
+                detail=f"unknown zone_id for {country}: {zone_id}")
+        raise HTTPException(status_code=422,
+                            detail=f"unknown zone_id: {zone_id}")
+    zone_row = dict(row)
+
+    served = _load_cached_explain(cached_dir, zone_row, requested_lang)
+    served_lang = requested_lang
+    if served is None and requested_lang != "en":
+        served = _load_cached_explain(cached_dir, zone_row, "en")
+        served_lang = "en"
+    if served is not None:
+        return {
+            "zone_id": zone_row["id"],
+            "country": zone_row["country"],
+            "admin_name": zone_row["admin_name"],
+            "lang": served_lang,
+            "requested_lang": requested_lang,
+            "source": "cache",
+            "origin": EXPLAIN_ORIGIN,
+            "explanation": served["explanation"],
+            "score_components": {f: zone_row[f]
+                                  for f in EXPLAIN_COMPONENT_FIELDS},
+        }
+    if not (config.META_API_KEY):  # cache miss and no key for live Spark
         raise HTTPException(
             status_code=501,
-            detail="explain not implemented: META_API_KEY not set (Spark runs on stored score components only)",
-        )
-    raise HTTPException(status_code=501, detail="explain not implemented: Spark agent not wired yet")
+            detail="explain not implemented: META_API_KEY not set (Spark runs on stored score components only)")
+    raise HTTPException(
+        status_code=501,
+        detail="explain not implemented: Spark agent not wired yet")
+
+
+@app.post("/explain")
+def explain(payload: dict = Body(...)) -> dict:
+    return explain_request(payload)

@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "kind": "explain",
+  "zone_id": "LAO.1_1",
+  "country": "laos",
+  "admin_name": "Attapu",
+  "lang": "en",
+  "explanation": "Attapu (LAO.1_1, laos) is ranked #1 with priority score 0.445412. Its stored score components are strike density 7.41922 recorded missions/km² (USAF THOR records), crater evidence 2.14758 craters/km² (KH-9 imagery crater predictions), and exposure 4.61384 OSM features/km² (OpenStreetMap). Surveyed status: unsurveyed. The score was computed by pipelines/scoring.py at 2026-10-28T18:22:41.166149+00:00; this cached explanation only restates those stored values and is not a live model answer.",
+  "score_components": {
+    "strike_density": 7.419224234747866,
+    "crater_evidence": 2.14758095762636,
+    "exposure": 4.613840003188199,
+    "surveyed_status": "unsurveyed",
+    "priority_score": 0.4454117052903541,
+    "priority_rank": 1,
+    "scored_at": "2026-10-28T18:22:41.166149+00:00"
+  },
+  "origin": "template_from_stored_components",
+  "generated_from": "stored score components only (pipelines/scoring.py); no live model"
+}

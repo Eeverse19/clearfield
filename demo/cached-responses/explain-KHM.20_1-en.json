@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "kind": "explain",
+  "zone_id": "KHM.20_1",
+  "country": "cambodia",
+  "admin_name": "Rôtânôkiri",
+  "lang": "en",
+  "explanation": "Rôtânôkiri (KHM.20_1, cambodia) is ranked #1 with priority score 0.0370924. Its stored score components are strike density 1.3802 recorded missions/km² (USAF THOR records), crater evidence 0.464988 craters/km² (KH-9 imagery crater predictions), and exposure 0.545372 OSM features/km² (OpenStreetMap). Surveyed status: unsurveyed. The score was computed by pipelines/scoring.py at 2026-10-28T18:22:41.584195+00:00; this cached explanation only restates those stored values and is not a live model answer.",
+  "score_components": {
+    "strike_density": 1.3801955850872176,
+    "crater_evidence": 0.4649884019131475,
+    "exposure": 0.5453724867272678,
+    "surveyed_status": "unsurveyed",
+    "priority_score": 0.037092406030750834,
+    "priority_rank": 1,
+    "scored_at": "2026-10-28T18:22:41.584195+00:00"
+  },
+  "origin": "template_from_stored_components",
+  "generated_from": "stored score components only (pipelines/scoring.py); no live model"
+}

@@ -35,6 +35,7 @@ FILES = [
     # files may rotate, so a 404 here means re-pin, never skip the MD5.
     ("osm/laos-261025.osm.pbf", "https://download.geofabrik.de/asia/laos-261025.osm.pbf", "bf854b5f14bec74d8854742d227b8695", 53_978_663),
     ("osm/cambodia-261025.osm.pbf", "https://download.geofabrik.de/asia/cambodia-261025.osm.pbf", "7403c81f9de80c012fb930c0758e48ef", 41_150_119),
+    ("osm/vietnam-261025.osm.pbf", "https://download.geofabrik.de/asia/vietnam-261025.osm.pbf", "cd128585774ee4e3ff8c3bc33649cd60", 331_590_326),
 ]
 
 

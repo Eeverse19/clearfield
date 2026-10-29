@@ -11,11 +11,10 @@
   },
   "imagery": ["kh9_barthelme_quang_tri", "sentinel2", "planet_nicfi"],
   "boundaries": {"source": "gadm", "country_code": "VNM", "admin_level": 1},
-  "osm_extract": "vietnam",
+  "osm_extract": "data/osm/vietnam-261025.osm.pbf",
   "stats_source": "Published province-level statistics (not IMSMA polygons)",
   "_todo": [
     "Not in demo scope (Laos + Cambodia); profile exists because Barthelme crater predictions cover Quang Tri and the tri-border area",
-    "demo_area unset; Vietnamese report templates (agent/templates/vi/) not created",
-    "Pin OSM extract URL/checksum in docs/data-manifest.md"
+    "demo_area unset; Vietnamese report templates (agent/templates/vi/) not created"
   ]
 }

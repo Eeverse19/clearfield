@@ -905,9 +905,9 @@ function renderInspector(z){
     ${z.surveyed_status==="cleared"&&z.priority_rank!=null&&z.priority_score===0?`<div><span class="badge">Cleared - score 0 by formula</span></div>`:""}
     <h2>WHY THIS ZONE — BRIEFING</h2>
     <div class="brief">${briefing(z)}</div>
-    <div class="src"><span class="badge" style="margin:0 6px 0 0">LOCAL TEMPLATE · NOT AI</span>Built in your browser from the stored components above. Every number is a real database value with its source named. The Spark agent (<span style="font-family:var(--mono)">POST /explain</span>) is not connected yet.</div>
+    <div class="src"><span class="badge" style="margin:0 6px 0 0">LOCAL TEMPLATE · NOT AI</span>Built in your browser from the stored components above. Every number is a real database value with its source named. The Spark agent (<span style="font-family:var(--mono)">POST /explain</span>) serves cached explanations where seeded; live AI is not connected.</div>
     <div style="margin-top:8px"><button class="btn primary" id="btn-center">Center this zone on the map</button></div>
-    <div style="margin-top:6px"><button class="btn" id="btn-explain" style="font-size:12px;padding:6px 10px">Try the (unwired) Spark agent…</button></div>
+    <div style="margin-top:6px"><button class="btn" id="btn-explain" style="font-size:12px;padding:6px 10px">Ask Spark (cached explanations only)…</button></div>
     <div class="msg" id="explainmsg" role="status"></div>
     <details class="help" id="finddetails" ${S.findDraft?"open":""}>
       <summary>Record a field find in this zone</summary>
@@ -1012,7 +1012,8 @@ function wireInspector(z){
     try{
       const r=await fetch(API+"/explain",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({zone_id:z.id})});
       const body=await r.json().catch(()=>({}));
-      m.className="msg err"; m.textContent = `Spark isn't connected yet, so there's no AI answer — use the local briefing above. (Server said: ${body.detail||r.status})`;
+      if(r.ok){ m.className="msg good"; m.textContent = `Cached explanation (template from stored components, not AI): ${body.explanation}` + (body.lang!==body.requested_lang ? ` (asked for ${body.requested_lang}, served in English)` : ""); }
+      else { m.className="msg err"; m.textContent = `Spark isn't connected yet, so there's no AI answer — use the local briefing above. (Server said: ${body.detail||r.status})`; }
     }catch(e){ m.className="msg err"; m.textContent="API unreachable: "+e.message; }
   };
   const syncLoc = ()=>{

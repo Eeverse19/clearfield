@@ -83,8 +83,8 @@ are **not** in `docs/thor/` — fold them into the spec before seeding
   `docs/getting-started.md`, `scripts/download_data.py`) plus untracked
   `pipelines/osm_exposure.py` and `tests/test_osm_exposure.py` — and now
   `docs/thor/` + this file. Commit in logical chunks, then re-push `main`.
-- [ ] **P0-4. Wire `/explain` (cache-first, then live Spark). (M)**
-  `backend/app/main.py:188-195` returns 501 both ways today;
+- [ ] **P0-4. Wire `/explain` (cache-first, then live Spark). (M) — PARTIAL 2026-10-29: cache-first DONE; live Spark still blocked on `META_API_KEY`.** `explain_request` (`backend/app/main.py:428`, wrapper `:519`) serves seeded `demo/cached-responses/explain-<ZONE>-en.json` templates over stored components with no key (6 ranked zones; `lo`/`km`/`vi` get a labeled English fallback), and keeps the honest 501 on cache miss. Regenerate seeds with `scripts/make_cached_explanations.py` after each scoring run. Remaining: live Spark wiring behind that 501 (needs `META_API_KEY`). Original task text follows for history:
+  `backend/app/main.py:188-195` returned 501 both ways then (now `explain_request` at `backend/app/main.py:428`);
   `agent/spark.py:9` raises `NotImplementedError` ("cache-first path lands
   first"). `demo/cached-responses/` contains only a README, so the cached
   demo path (`docs/demo-script.md`) has nothing to serve yet either.
@@ -123,10 +123,10 @@ are **not** in `docs/thor/` — fold them into the spec before seeding
   `agent/templates/km/` and `agent/templates/lo/` contain only `.gitkeep`;
   only `agent/templates/en/survey-report.md` exists. Vietnamese templates
   don't exist either (`countries/vietnam.json` `_todo`).
-- [ ] **P1-5. Fill `demo/cached-responses/` for the scripted demo. (S, after P0-1/P0-4)**
+- [ ] **P1-5. Fill `demo/cached-responses/` for the scripted demo. (S, after P0-1/P0-4) — PARTIAL 2026-10-29.** Moment 2 `/explain` files are seeded for all 6 ranked zones (English; `scripts/make_cached_explanations.py`, format frozen in `demo/cached-responses/README.md`). Still pending: genuine `lo`/`km` translations (needs a translation source; also P1-4 templates) and cached files for the non-`/explain` scripted steps (Moments 0, 1, 3, 4). Original text:
   `docs/demo-script.md` promises every demo response is pre-cached; the
   folder holds only a README.
-- [ ] **P1-6. Vietnam OSM exposure. (S)** Only Laos + Cambodia `.osm.pbf`
+- [x] **P1-6. Vietnam OSM exposure. (S) — DONE 2026-10-29.** Pinned `vietnam-261025.osm.pbf` (331,590,326 B, md5 `cd128585774ee4e3ff8c3bc33649cd60` verified vs Geofabrik `.md5`) in `scripts/download_data.py` + `docs/data-manifest.md`; `vietnam.json` pinned. Exposure 63/63 VN zones (2.579–134.123/km²); VN-only scoring ranked 3/63 (VNM.50_1/34_1/21_1); cache regen 9 files. Original: Only Laos + Cambodia `.osm.pbf`
   extracts are in `data/osm/`, so 63 Vietnam zones have no exposure yet.
   Pin the extract URL/checksum in `docs/data-manifest.md`
   (`countries/vietnam.json` `_todo`).

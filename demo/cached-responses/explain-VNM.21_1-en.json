@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "kind": "explain",
+  "zone_id": "VNM.21_1",
+  "country": "vietnam",
+  "admin_name": "GiaLai",
+  "lang": "en",
+  "explanation": "GiaLai (VNM.21_1, vietnam) is ranked #3 with priority score 0.00548519. Its stored score components are strike density 4.02784 recorded missions/km² (USAF THOR records), crater evidence 0.179413 craters/km² (KH-9 imagery crater predictions), and exposure 5.31743 OSM features/km² (OpenStreetMap). Surveyed status: unsurveyed. The score was computed by pipelines/scoring.py at 2026-10-29T20:24:21.257998+00:00; this cached explanation only restates those stored values and is not a live model answer.",
+  "score_components": {
+    "strike_density": 4.027836561032466,
+    "crater_evidence": 0.17941308116533147,
+    "exposure": 5.317432526262152,
+    "surveyed_status": "unsurveyed",
+    "priority_score": 0.005485191451091732,
+    "priority_rank": 3,
+    "scored_at": "2026-10-29T20:24:21.257998+00:00"
+  },
+  "origin": "template_from_stored_components",
+  "generated_from": "stored score components only (pipelines/scoring.py); no live model"
+}
