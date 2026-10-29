@@ -102,6 +102,58 @@ def status() -> dict:
                    "detail": f"{gadm} files in data/gadm/ (admin-0 x3 + admin-1 Laos)",
                    "progress": 1.0 if gadm >= 4 else gadm / 4})
 
+    repro_files = [
+        DATA / "barthelme" / "predictions.zip", DATA / "barthelme" / "models.zip",
+        DATA / "barthelme" / "data.zip", DATA / "barthelme" / "tables.zip",
+        DATA / "gadm" / "gadm41_LAO_1.json", DATA / "gadm" / "gadm41_KHM_1.json",
+        DATA / "gadm" / "gadm41_VNM_1.json", DATA / "osm" / "laos-261025.osm.pbf",
+        DATA / "osm" / "cambodia-261025.osm.pbf",
+    ]
+    repro_have = sum(1 for p in repro_files if p.exists())
+    stages.append({"name": "Data reproduction (Barthelme + GADM + OSM)",
+                   "status": "done" if repro_have == len(repro_files) else
+                             ("active" if repro_have else "pending"),
+                   "detail": f"{repro_have}/{len(repro_files)} pinned files "
+                             "(scripts/download_data.py, MD5-checked)",
+                   "progress": repro_have / len(repro_files)})
+
+    kh9_tifs = _count("*8mpp.tif", DATA / "kh9" / "quang_tri") + \
+        _count("*8mpp.tif", DATA / "kh9" / "tri_border")
+    stages.append({"name": "KH-9 georeferenced imagery (Edinburgh, 8 mpp)",
+                   "status": "done" if kh9_tifs == 10 else ("active" if kh9_tifs else "pending"),
+                   "detail": f"{kh9_tifs}/10 frames in data/kh9/ (1 mpp deferred to windowed reads)",
+                   "progress": kh9_tifs / 10})
+
+    db_path = DATA / "clearfield.db"
+    thor_path = DATA / "thor" / "THOR_Vietnam_7_31_2013.csv"
+    if not thor_path.exists():
+        alt = list((DATA / "thor").glob("*.csv")) if (DATA / "thor").exists() else []
+        thor_path = alt[0] if alt else thor_path
+    db_detail, db_status, db_prog = "no data/clearfield.db on this machine", "pending", 0.0
+    if db_path.exists():
+        try:
+            import sqlite3
+            con = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True, timeout=5)
+            zones, struck, ranked = con.execute(
+                "SELECT COUNT(*), COUNT(strike_density), COUNT(priority_rank) FROM zones"
+            ).fetchone()
+            try:
+                built = con.execute(
+                    "SELECT COUNT(building_density) FROM zones").fetchone()[0]
+            except Exception:
+                built = 0
+            con.close()
+            db_detail = (f"DB present: {zones} zones, strike_density {struck}/{zones}, "
+                         f"ranked {ranked}, building_density {built}/{zones}; THOR csv "
+                         f"{'present' if thor_path.exists() else 'ABSENT (manual data.world download)'}")
+            db_status = "done" if ranked else "active"
+            db_prog = 1.0 if ranked else 0.5
+        except Exception as e:
+            db_detail = f"DB present ({fmt_bytes(_size(db_path))}) but unreadable: {e}"
+            db_status = "active"
+    stages.append({"name": "Local DB seed + THOR strike_density",
+                   "status": db_status, "detail": db_detail, "progress": db_prog})
+
     parts = _count("*.csv", DATA / "sentinel2" / "catalog" / ".parts")
     finals = _count("*_sentinel-2-*.csv.gz", DATA / "sentinel2" / "catalog")
     cat_summary = DATA / "sentinel2" / "catalog" / "summary.json"
@@ -230,6 +282,8 @@ def status() -> dict:
             "catalog": _tail(cat_logs[-1]) if cat_logs else [],
             "worldstrat": _tail(DATA / "worldstrat_run.log"),
             "tiling": _tail(DATA / "imagery_tiling.log"),
+            "downloads": _tail(DATA / "download_barthelme.log", 8) +
+                         _tail(DATA / "download_kh9.log", 8),
         },
     }
 
@@ -257,6 +311,7 @@ h2{font-size:15px;margin:18px 0 6px}
 <h2>Artifacts</h2><div class="card"><table id="artifacts"></table></div>
 <h2>Logs (tails)</h2>
 <div class="card"><b>WorldStrat</b><pre id="log-worldstrat"></pre>
+<b>Downloads (Barthelme / KH-9)</b><pre id="log-downloads"></pre>
 <b>Sentinel-2 catalog</b><pre id="log-catalog"></pre>
 <b>Tiling</b><pre id="log-tiling"></pre></div>
 <script>
@@ -273,7 +328,7 @@ async function tick(){
     (g?` - GPU ${g.name}: ${g.mem_used} / ${g.mem_total}, util ${g.util}`:' - GPU n/a');
   document.getElementById('artifacts').innerHTML='<tr><th>Artifact</th><th>Size</th><th>Age (min)</th><th>Path</th></tr>'+
     s.artifacts.map(a=>`<tr><td>${a.name}</td><td>${a.size}</td><td>${a.age_min}</td><td>${a.path}</td></tr>`).join('');
-  for(const k of ['worldstrat','catalog','tiling'])
+  for(const k of ['worldstrat','downloads','catalog','tiling'])
     document.getElementById('log-'+k).textContent=(s.logs[k]||[]).join('\\n')||'(no log yet)';
 }
 tick(); setInterval(tick,3000);

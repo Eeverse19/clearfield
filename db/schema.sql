@@ -17,6 +17,10 @@ CREATE TABLE IF NOT EXISTS zones (
     strike_density  DOUBLE PRECISION,
     crater_evidence DOUBLE PRECISION,
     exposure        DOUBLE PRECISION,
+    -- Auxiliary settlement signal (Microsoft building footprints/km2,
+    -- pipelines/building_exposure.py). Not read by scoring.py until a
+    -- scoring decision blends it; stored so the choice is auditable.
+    building_density DOUBLE PRECISION,
     surveyed_status TEXT NOT NULL DEFAULT 'unsurveyed'
                     CHECK (surveyed_status IN ('unsurveyed', 'surveyed', 'cleared')),
     -- Derived by pipelines/scoring.py from the components above. Nothing else

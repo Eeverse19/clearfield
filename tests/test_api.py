@@ -13,7 +13,8 @@ import pytest
 from fastapi import HTTPException
 
 from backend.app import config
-from backend.app.main import countries, country, create_find, explain, health, index, list_zones
+from backend.app.main import (countries, country, create_find, explain,
+                              get_buildings, health, index, list_zones)
 
 SCHEMA = Path(__file__).resolve().parents[1] / "db" / "schema.local.sql"
 GEOM = '{"type": "MultiPolygon", "coordinates": []}'
@@ -118,6 +119,24 @@ def test_find_validation(tmp_path):
     assert status_of(lambda: create_find(dict(FIND), db_path=tmp_path / "missing.db")) == 503
 
 
+def test_buildings_points_bbox_and_missing(tmp_path):
+    import array as _array
+
+    d = tmp_path / "Laos"
+    d.mkdir(parents=True)
+    pts = _array.array("f", [100.0, 10.0, 101.0, 11.0, 105.0, 20.0])
+    (d / "centroids.f32").write_bytes(pts.tobytes())
+    resp = get_buildings("laos", bbox="99,9,102,12", buildings_dir=tmp_path)
+    assert resp.headers["x-building-count"] == "2"
+    assert resp.headers["x-building-total"] == "3"
+    assert len(resp.body) == 2 * 2 * 4
+    resp = get_buildings("laos", limit=1, buildings_dir=tmp_path)
+    assert resp.headers["x-building-truncated"] == "true"
+    assert status_of(lambda: get_buildings("cambodia", buildings_dir=tmp_path)) == 404
+    assert status_of(lambda: get_buildings("atlantis", buildings_dir=tmp_path)) == 404
+    assert status_of(lambda: get_buildings("laos", bbox="bad", buildings_dir=tmp_path)) == 422
+
+
 def test_explain_still_honest_501():
     assert status_of(explain) == 501
 
@@ -134,7 +153,8 @@ def test_index_serves_frontend_gui():
     for needle in ("Official priority", "Strike records (THOR)", "Data coverage",
                    "not verified impacts", "OpenStreetMap contributors",
                    "not zero, not low, not safe", "Unscorable", "◆ DEMO",
-                   "country max", "Math.log1p"):
+                   "country max", "Math.log1p",
+                    'id="btn-basemap"', "World_Imagery/MapServer/export", "s2cloudless-2024"):
         assert needle in body, needle
     for stale in ("THOR pending", "A real zero gets the lightest", "needs the THOR ingest"):
         assert stale not in body, stale

@@ -59,7 +59,9 @@ def download(url: str, dest: Path, total: int) -> None:
     So length is verified here after every attempt and the Range resume
     repeats until the file is exactly `total` bytes (max 20 attempts).
     """
+    import http.client
     import time
+    import urllib.error
 
     for attempt in range(1, 21):
         have = dest.stat().st_size if dest.exists() else 0
@@ -68,22 +70,31 @@ def download(url: str, dest: Path, total: int) -> None:
         if have > total:
             dest.unlink()
             have = 0
-        req = urllib.request.Request(url)
-        if 0 < have < total:
-            req.add_header("Range", f"bytes={have}-")
-        with urllib.request.urlopen(req) as resp:
-            mode = "ab" if (have and resp.status == 206) else "wb"
-            if mode == "wb":
-                have = 0
-            done, step = have, max(total // 20, 1 << 20)
-            next_report = done + step
-            with dest.open(mode) as f:
-                for chunk in iter(lambda: resp.read(1 << 20), b""):
-                    f.write(chunk)
-                    done += len(chunk)
-                    if done >= next_report:
-                        print(f"  {done / total:.0%} ({done / 1e9:.1f} GB)", flush=True)
-                        next_report += step
+        try:
+            req = urllib.request.Request(url)
+            if 0 < have < total:
+                req.add_header("Range", f"bytes={have}-")
+            with urllib.request.urlopen(req) as resp:
+                mode = "ab" if (have and resp.status == 206) else "wb"
+                if mode == "wb":
+                    have = 0
+                done, step = have, max(total // 20, 1 << 20)
+                next_report = done + step
+                with dest.open(mode) as f:
+                    for chunk in iter(lambda: resp.read(1 << 20), b""):
+                        f.write(chunk)
+                        done += len(chunk)
+                        if done >= next_report:
+                            print(f"  {done / total:.0%} ({done / 1e9:.1f} GB)", flush=True)
+                            next_report += step
+        except (urllib.error.URLError, http.client.HTTPException,
+                ConnectionError, TimeoutError, OSError) as e:
+            # e.g. DNS failure mid-resume (observed 2026-10-28 at 63%):
+            # whatever bytes landed stay on disk; the loop resumes them.
+            print(f"  network error ({type(e).__name__}: {e}); resuming "
+                  f"(attempt {attempt}/20)", flush=True)
+            time.sleep(10)
+            continue
         size = dest.stat().st_size
         if size == total:
             return

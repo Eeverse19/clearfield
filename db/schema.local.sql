@@ -11,6 +11,7 @@ CREATE TABLE IF NOT EXISTS zones (
     strike_density  REAL,
     crater_evidence REAL,
     exposure        REAL,
+    building_density REAL,  -- auxiliary (pipelines/building_exposure.py); not a scoring component yet
     surveyed_status TEXT NOT NULL DEFAULT 'unsurveyed'
                     CHECK (surveyed_status IN ('unsurveyed', 'surveyed', 'cleared')),
     priority_score  REAL,

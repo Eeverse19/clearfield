@@ -98,6 +98,8 @@
   .maptools button,.mapbtn{background:rgba(20,27,36,.92);border:1px solid var(--line);color:var(--text);border-radius:3px;padding:8px 12px;font-size:12px;min-height:40px}
   .maptools button.on{border-color:var(--red);color:#ffb59d}
   #coords{position:absolute;right:12px;bottom:10px;font-family:var(--mono);font-size:11px;color:var(--dim);background:rgba(13,18,24,.85);padding:3px 8px;border:1px solid var(--line);border-radius:3px;z-index:5}
+  #baseattr{position:absolute;left:12px;bottom:10px;max-width:46%;font-size:10.5px;color:var(--dim);background:rgba(13,18,24,.85);padding:3px 8px;border:1px solid var(--line);border-radius:3px;z-index:5}
+  .maptools button.basemap-on{border-color:var(--teal);color:#a9e8c9}
   #tooltip{position:absolute;pointer-events:none;background:rgba(10,14,19,.94);border:1px solid var(--line);border-radius:3px;padding:6px 9px;font-size:12px;z-index:6;display:none;max-width:240px}
   #tooltip .tv{font-family:var(--mono);color:var(--amber)}
   .banner{position:absolute;left:50%;transform:translateX(-50%);bottom:12px;z-index:5;background:rgba(20,27,36,.94);border:1px solid #4d3a16;border-radius:3px;color:#e9c883;padding:7px 12px;font-size:12px;display:none;max-width:86%}
@@ -195,7 +197,10 @@
       <button id="btn-fit">Fit country</button>
       <button id="btn-demo">Go to demo province</button>
       <button id="btn-findmode">Record a find</button>
+      <button id="btn-basemap" class="basemap-on" title="Toggle satellite basemap (online tiles; vector view works offline)">Satellite: on</button>
+      <button id="btn-buildings" title="Toggle Microsoft building footprint points (local data)">Buildings: off</button>
     </div>
+    <div id="baseattr">Satellite: Esri World Imagery — Source: Esri, Vantor, Earthstar Geographics, and the GIS User Community (online; turn off for the offline vector map)</div>
     <div id="tooltip"></div>
     <div class="banner" id="layerbanner"></div>
     <div class="banner" id="banner"></div>
@@ -229,6 +234,8 @@ const S = {
   country:"laos", profiles:{}, profile:null, zones:[], layer:"official", total:null, countryMax:{},
   surveyed:"all", query:"", selectedId:null, hoverId:null,
   view:{scale:1, tx:0, ty:0}, fitDone:false, findMode:false,
+  basemap:true, baseImg:null, baseKey:null, baseLoading:null, baseProvider:"esri",
+  buildings:false, buildingData:null, buildingKey:null, buildingLoading:null, buildingError:{},
   finds: JSON.parse(localStorage.getItem("clearfield-finds-v1")||"[]"),
   findDraft:null,
 };
@@ -416,27 +423,127 @@ function zonePath(z){
   }
   return p;
 }
+// --- satellite basemap (online; the vector map stays the offline fallback) ---
+// Esri's WMSServer returns 400, but its /export endpoint serves an
+// EPSG:4326 viewport image that matches this equirectangular canvas
+// exactly; EOX Sentinel-2 cloudless WMS is the fallback provider.
+function viewBBox(){
+  const [lonMin, latMax] = toLonLat(0,0);
+  const [lonMax, latMin] = toLonLat(canvas._w, canvas._h);
+  return [lonMin, latMin, lonMax, latMax];
+}
+function basemapUrl(provider, bb, w, h){
+  const [a,b,c,d] = bb;
+  if(provider==="eox") return `https://tiles.maps.eox.at/wms?SERVICE=WMS&VERSION=1.1.1&REQUEST=GetMap&LAYERS=s2cloudless-2024&SRS=EPSG:4326&BBOX=${a},${b},${c},${d}&WIDTH=${w}&HEIGHT=${h}&FORMAT=image/jpeg`;
+  return `https://services.arcgisonline.com/arcgis/rest/services/World_Imagery/MapServer/export?bbox=${a},${b},${c},${d}&bboxSR=4326&imageSR=4326&size=${w},${h}&format=jpg&f=image`;
+}
+function ensureBasemap(){
+  if(!S.basemap || !canvas._w) return;
+  const bb = viewBBox().map(v=>Math.round(v*50)/50);  // quantize: stable cache key while panning
+  const w = Math.min(1600, Math.max(320, Math.round(canvas._w*(canvas._dpr||1))));
+  const h = Math.min(1600, Math.max(320, Math.round(canvas._h*(canvas._dpr||1))));
+  const key = `${S.baseProvider}|${bb.join(",")}|${w}x${h}`;
+  if(S.baseKey===key || S.baseLoading===key) return;
+  S.baseLoading = key;
+  const img = new Image();
+  img.onload = ()=>{ S.baseImg={img, bb}; S.baseKey=key; S.baseLoading=null; scheduleDraw(); };
+  img.onerror = ()=>{
+    S.baseLoading = null;
+    if(S.baseProvider==="esri"){
+      S.baseProvider = "eox";
+      $("baseattr").textContent = "Satellite: Sentinel-2 cloudless by EOX (Esri unreachable) - Contains modified Copernicus Sentinel data 2024 (online; turn off for the offline vector map)";
+      ensureBasemap();
+    }
+  };
+  img.src = basemapUrl(S.baseProvider, bb, w, h);
+}
+function drawBasemap(){
+  if(!S.basemap) return;
+  ensureBasemap();
+  const rec = S.baseImg; if(!rec) return;
+  const [a,b,c,d] = rec.bb;
+  const [x,y] = proj(a,d);
+  ctx.drawImage(rec.img, x, y, (c-a)*cosRef, d-b);
+}
+// --- building footprint points (Microsoft, local /buildings endpoint) ---
+async function ensureBuildings(){
+  if(!S.buildings || !canvas._w) return;
+  // Viewport-bbox fetches (padded), like the basemap: Vietnam has 23.9M
+  // buildings, so whole-country transfers are not an option.
+  const raw = viewBBox(), padX = (raw[2]-raw[0])*0.5, padY = (raw[3]-raw[1])*0.5;
+  const bb = [raw[0]-padX, raw[1]-padY, raw[2]+padX, raw[3]+padY].map(v=>Math.round(v*10)/10);
+  const key = `${S.country}|${bb.join(",")}`;
+  if(S.buildingKey===key || S.buildingLoading===key) return;
+  S.buildingLoading = key;
+  try {
+    const r = await fetch(`${API}/buildings/${S.country}?bbox=${bb.join(",")}&limit=2000000`);
+    if(!r.ok) throw new Error((await r.text()).slice(0, 200));
+    const data = new Float32Array(await r.arrayBuffer());
+    S.buildingData = {data, bb, total: +(r.headers.get("X-Building-Total") || 0),
+                      truncated: r.headers.get("X-Building-Truncated")==="true"};
+    S.buildingKey = key;
+    delete S.buildingError[S.country];
+  } catch(e) {
+    S.buildingError[S.country] = String(e.message || e);
+    announce(`Buildings unavailable for ${S.country}: ${S.buildingError[S.country]}`);
+  } finally {
+    if(S.buildingLoading===key) S.buildingLoading = null;
+    updateBuildingsButton();
+    scheduleDraw();
+  }
+}
+function updateBuildingsButton(){
+  const b = $("btn-buildings"); if(!b) return;
+  const rec = S.buildingData;
+  if(!S.buildings) b.textContent = "Buildings: off";
+  else if(rec && rec.data) b.textContent = `Buildings: on (${(rec.data.length/2).toLocaleString()} in view${rec.truncated?"+":""})`;
+  else if(S.buildingError[S.country]) b.textContent = "Buildings: unavailable";
+  else b.textContent = "Buildings: loading…";
+  b.classList.toggle("basemap-on", S.buildings && !!(rec && rec.data));
+}
+function drawBuildings(){
+  if(!S.buildings) return;
+  ensureBuildings();
+  const rec = S.buildingData;
+  if(!rec || !rec.data) return;
+  const data = rec.data;
+  const [lonMin, latMin, lonMax, latMax] = viewBBox();
+  const s = 1.7 / S.view.scale;  // ~1.7 screen px squares, in world units
+  ctx.fillStyle = "rgba(255, 209, 102, 0.55)";
+  for(let i = 0; i < data.length; i += 2){
+    const lon = data[i], lat = data[i+1];
+    if(lon < lonMin || lon > lonMax || lat < latMin || lat > latMax) continue;
+    const [x, y] = proj(lon, lat);
+    ctx.fillRect(x, y, s, s);
+  }
+}
 function draw(){
   if(!canvas.width) return;
   const dpr = canvas._dpr||1;
   ctx.setTransform(dpr,0,0,dpr,0,0);
   ctx.fillStyle = "#0a0f14"; ctx.fillRect(0,0,canvas._w,canvas._h);
   ctx.setTransform(dpr*S.view.scale,0,0,dpr*S.view.scale,dpr*S.view.tx,dpr*S.view.ty);
-  // graticule every 2 degrees
-  ctx.strokeStyle = "#16202c"; ctx.lineWidth = 1/S.view.scale;
-  ctx.beginPath();
-  for(let lon=92; lon<=112; lon+=2){ const [x]=proj(lon,0); ctx.moveTo(x,-26); ctx.lineTo(x,-4); }
-  for(let lat=6; lat<=24; lat+=2){ const [,y]=proj(0,lat); ctx.moveTo(92*cosRef,y); ctx.lineTo(112*cosRef,y); }
-  ctx.stroke();
+  drawBasemap();
+  // graticule every 2 degrees (vector mode only; it would clutter imagery)
+  if(!S.basemap){
+    ctx.strokeStyle = "#16202c"; ctx.lineWidth = 1/S.view.scale;
+    ctx.beginPath();
+    for(let lon=92; lon<=112; lon+=2){ const [x]=proj(lon,0); ctx.moveTo(x,-26); ctx.lineTo(x,-4); }
+    for(let lat=6; lat<=24; lat+=2){ const [,y]=proj(0,lat); ctx.moveTo(92*cosRef,y); ctx.lineTo(112*cosRef,y); }
+    ctx.stroke();
+  }
   const demoId = S.profile && S.profile.demo_zone_id;
   for(const z of S.zones){
     const filtered = (S.surveyed!=="all" && z.surveyed_status!==S.surveyed);
     const fill = fillFor(z), p = z._path || zonePath(z);
     ctx.globalAlpha = filtered ? 0.18 : 1;
-    if(fill==null){  // NULL: solid base + screen-constant hatch (pattern filled under identity view transform)
-      ctx.fillStyle = "#232b36"; ctx.fill(p);
+    if(fill==null){  // NULL: over imagery, hatch only (land must stay visible); over vector bg, solid + hatch
+      if(!S.basemap){ ctx.fillStyle = "#232b36"; ctx.fill(p); }
       ctx.save(); ctx.clip(p); ctx.setTransform(dpr,0,0,dpr,0,0); ctx.fillStyle = makeHatch(); ctx.fillRect(0,0,canvas._w,canvas._h); ctx.restore();
-    } else { ctx.fillStyle = fill; ctx.fill(p); }
+    } else {
+      if(S.basemap) ctx.globalAlpha = filtered ? 0.10 : 0.55;  // translucent so the land shows through
+      ctx.fillStyle = fill; ctx.fill(p); ctx.globalAlpha = filtered ? 0.18 : 1;
+    }
     if(false){  // legacy duplicate fill below is disabled (fill handled above)
     ctx.globalAlpha = filtered ? 0.18 : 1;
     ctx.fill(p);
@@ -465,6 +572,7 @@ function draw(){
     ctx.fillStyle = f._status==="synced" ? "#5cae6e" : "#e8a33d"; ctx.fill();
     ctx.strokeStyle="#0d1218"; ctx.lineWidth=1.4/S.view.scale; ctx.stroke();
   }
+  drawBuildings();
   ctx.setTransform(dpr,0,0,dpr,0,0);
 }
 // --- map interaction ---------------------------------------------------------
@@ -528,6 +636,18 @@ function zoomBy(f){ const cx=canvas._w/2, cy=canvas._h/2, [wx,wy]=toWorld(cx,cy)
 $("btn-zin").onclick = ()=>zoomBy(1.3);
 $("btn-zout").onclick = ()=>zoomBy(1/1.3);
 $("btn-fit").onclick = ()=>fitCountry();
+$("btn-basemap").onclick = ()=>{
+  S.basemap = !S.basemap;
+  $("btn-basemap").textContent = `Satellite: ${S.basemap?"on":"off"}`;
+  $("btn-basemap").classList.toggle("basemap-on", S.basemap);
+  $("baseattr").style.display = S.basemap ? "block" : "none";
+  draw();
+};
+$("btn-buildings").onclick = ()=>{
+  S.buildings = !S.buildings;
+  updateBuildingsButton();
+  draw();
+};
 // --- side panels -------------------------------------------------------------
 function renderTabs(){
   $("countrytabs").innerHTML = Object.values(S.profiles).map(p=>{

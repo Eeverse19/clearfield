@@ -54,6 +54,18 @@ TO_4326 = Transformer.from_crs(32648, 4326, always_xy=True)
 GEOD = Geod(ellps="WGS84")
 
 
+def zone_hits(tree: STRtree, centroid) -> list:
+    """Indices of zones the centroid falls in.
+
+    Predicate direction matters: STRtree.query evaluates
+    predicate(input, candidate), so this must be "within" (centroid
+    within zone). The original "covers" asked whether the point covers
+    the zone -- always false, which silently seeded 0 craters with a
+    reconciled total (found 2026-10-28, shapely 2.2.0).
+    """
+    return list(tree.query(centroid, predicate="within"))
+
+
 def to_4326(geom):
     return shapely.transform(
         geom, lambda c: np.column_stack(TO_4326.transform(c[:, 0], c[:, 1])))
@@ -64,9 +76,13 @@ def iter_features(zf: zipfile.ZipFile, member: str, counters: dict):
     with zf.open(member) as raw:
         for line in raw:
             line = line.strip().rstrip(b",")
-            if not line.startswith(b"{"):
-                continue  # collection header/footer lines
-            feat = json.loads(line)
+            if not line.startswith(b"{") or line in (b"{", b"}"):
+                continue  # collection header/footer lines (incl. the lone "{")
+            try:
+                feat = json.loads(line)
+            except json.JSONDecodeError:
+                counters["unparsed"] += 1
+                continue
             if feat.get("type") != "Feature":
                 counters["unparsed"] += 1
                 continue
@@ -167,7 +183,7 @@ def main() -> int:
                     if geom.geom_type == "MultiPolygon" else geom
                 centroid = to_4326(poly_utm.centroid)
                 centroids.append(centroid)  # coverage uses ALL source craters
-                hits = list(tree.query(centroid, predicate="covers"))
+                hits = zone_hits(tree, centroid)
                 if not hits:
                     totals["outside"] += 1
                     continue
