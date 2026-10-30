@@ -301,6 +301,42 @@ def kh9_frames():
     return get_kh9_frames()
 
 
+def get_worldstrat_chips(worldstrat_dir=None) -> dict:
+    """WorldStrat chip footprints (bounds from data/worldstrat/index.csv)."""
+    import ast
+    import csv as _csv
+
+    root = worldstrat_dir if worldstrat_dir is not None else \
+        config.REPO_ROOT / "data" / "worldstrat"
+    path = root / "index.csv"
+    if not path.exists():
+        raise HTTPException(
+            status_code=404,
+            detail="WorldStrat catalog not found: run "
+                   "scripts/download_worldstrat.py first")
+    features = []
+    with path.open(newline="", encoding="utf-8") as fh:
+        for row in _csv.DictReader(fh):
+            b = ast.literal_eval(row["bounds"])  # [minlon, minlat, maxlon, maxlat]
+            ring = [[b[0], b[1]], [b[2], b[1]], [b[2], b[3]], [b[0], b[3]], [b[0], b[1]]]
+            features.append({
+                "type": "Feature",
+                "geometry": {"type": "Polygon", "coordinates": [ring]},
+                "properties": {
+                    "chip_id": row["chip_id"], "country": row["country"],
+                    "highres_date": row["highres_date"],
+                    "resolution": "1.5 m/px (Airbus SPOT, CC BY-NC 4.0)",
+                    "downloaded": (root / row["country"] / row["dir"]).exists(),
+                },
+            })
+    return {"type": "FeatureCollection", "features": features}
+
+
+@app.get("/worldstrat-chips")
+def worldstrat_chips():
+    return get_worldstrat_chips()
+
+
 def _validate_location(location):
     if location is None:
         return None

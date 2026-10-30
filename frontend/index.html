@@ -201,6 +201,7 @@
       <button id="btn-buildings" title="Toggle Microsoft building footprint points (local data)">Buildings: off</button>
       <button id="btn-craters" title="Toggle Barthelme KH-9 crater prediction points (1972-73 impact locations, not confirmed UXO)">Craters: off</button>
       <button id="btn-kh9" title="Toggle KH-9 photo frame footprints (the ground the crater evidence covers)">KH-9 frames: off</button>
+      <button id="btn-worldstrat" title="Toggle WorldStrat 1.5 m/px chip footprints (benchmark imagery pockets)">WorldStrat: off</button>
     </div>
     <div id="baseattr">Satellite: Esri World Imagery — Source: Esri, Vantor, Earthstar Geographics, and the GIS User Community (online; turn off for the offline vector map)</div>
     <div id="tooltip"></div>
@@ -240,6 +241,7 @@ const S = {
   buildings:false, buildingData:null, buildingKey:null, buildingLoading:null, buildingError:{},
   craters:false, craterData:null, craterKey:null, craterLoading:null, craterError:{},
   kh9:false, kh9Frames:null, kh9Loading:false, kh9Error:null,
+  worldstrat:false, wsChips:null, wsLoading:false, wsError:null,
   finds: JSON.parse(localStorage.getItem("clearfield-finds-v1")||"[]"),
   findDraft:null,
 };
@@ -602,6 +604,53 @@ function drawKh9(){
     ctx.fillStyle = "#a9e8c9"; ctx.fillText(label, x, y);
   }
 }
+async function ensureWorldstrat(){
+  if(!S.worldstrat || S.wsChips || S.wsLoading) return;
+  S.wsLoading = true;
+  try {
+    const r = await fetch(`${API}/worldstrat-chips`);
+    if(!r.ok) throw new Error((await r.text()).slice(0, 200));
+    S.wsChips = (await r.json()).features || [];
+    S.wsError = null;
+  } catch(e) {
+    S.wsError = String(e.message || e);
+    announce(`WorldStrat chips unavailable: ${S.wsError}`);
+  } finally {
+    S.wsLoading = false;
+    updateWorldstratButton();
+    scheduleDraw();
+  }
+}
+function updateWorldstratButton(){
+  const b = $("btn-worldstrat"); if(!b) return;
+  b.textContent = !S.worldstrat ? "WorldStrat: off"
+    : S.wsChips ? `WorldStrat: on (${S.wsChips.length})`
+    : S.wsError ? "WorldStrat: unavailable" : "WorldStrat: loading…";
+  b.classList.toggle("basemap-on", S.worldstrat && !!S.wsChips);
+}
+function drawWorldstrat(){
+  if(!S.worldstrat) return;
+  ensureWorldstrat();
+  if(!S.wsChips) return;
+  ctx.font = `600 ${9/S.view.scale}px sans-serif`;
+  ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  for(const f of S.wsChips){
+    if(f.properties.country !== S.country) continue;
+    const ring = f.geometry.coordinates[0];
+    const p = new Path2D();
+    ring.forEach(([lon, lat], i)=>{ const [x, y] = proj(lon, lat); i ? p.lineTo(x, y) : p.moveTo(x, y); });
+    p.closePath();
+    ctx.fillStyle = "rgba(180, 142, 232, 0.10)"; ctx.fill(p);
+    ctx.strokeStyle = "rgba(180, 142, 232, 0.85)"; ctx.lineWidth = 1.1/S.view.scale; ctx.stroke(p);
+    const cx = ring.reduce((a, c)=>a + c[0], 0) / ring.length;
+    const cy = ring.reduce((a, c)=>a + c[1], 0) / ring.length;
+    const [x, y] = proj(cx, cy);
+    const label = `${f.properties.chip_id} · ${f.properties.highres_date || ""}`;
+    ctx.strokeStyle = "rgba(6,10,14,.85)"; ctx.lineWidth = 3/S.view.scale;
+    ctx.strokeText(label, x, y);
+    ctx.fillStyle = "#d9c2ff"; ctx.fillText(label, x, y);
+  }
+}
 function drawCraters(){
   if(!S.craters) return;
   ensureCraters();
@@ -690,6 +739,7 @@ function draw(){
   drawBuildings();
   drawCraters();
   drawKh9();
+  drawWorldstrat();
   ctx.setTransform(dpr,0,0,dpr,0,0);
 }
 // --- map interaction ---------------------------------------------------------
@@ -773,6 +823,11 @@ $("btn-craters").onclick = ()=>{
 $("btn-kh9").onclick = ()=>{
   S.kh9 = !S.kh9;
   updateKh9Button();
+  draw();
+};
+$("btn-worldstrat").onclick = ()=>{
+  S.worldstrat = !S.worldstrat;
+  updateWorldstratButton();
   draw();
 };
 // --- side panels -------------------------------------------------------------
