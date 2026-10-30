@@ -16,7 +16,8 @@ from fastapi import HTTPException
 from backend.app import config
 from backend.app.main import (build_cached_explanation, countries, country,
                               create_find, explain, explain_request,
-                              get_buildings, get_craters, health, index, list_zones)
+                              get_buildings, get_craters, get_kh9_frames,
+                              health, index, list_zones)
 
 SCHEMA = Path(__file__).resolve().parents[1] / "db" / "schema.local.sql"
 GEOM = '{"type": "MultiPolygon", "coordinates": []}'
@@ -131,6 +132,23 @@ def test_craters_points_bbox_and_missing(tmp_path):
     assert resp.headers["x-crater-total"] == "3"
     assert status_of(lambda: get_craters("laos", kh9_dir=tmp_path)) == 404
     assert status_of(lambda: get_craters("ukraine", kh9_dir=tmp_path)) == 404
+
+
+def test_kh9_frames_geojson(tmp_path):
+    import json as _json
+
+    doc = {"frames": [{"frame": "F1-8mpp.tif", "area": "quang_tri", "count": 7,
+                       "bounds_epsg32648": {"left": 500000, "bottom": 1800000,
+                                            "right": 600000, "top": 1900000}}]}
+    (tmp_path / "kh9_match_summary.json").write_text(_json.dumps(doc), encoding="utf-8")
+    out = get_kh9_frames(kh9_dir=tmp_path)
+    f = out["features"][0]
+    assert f["properties"]["frame"] == "F1-8mpp.tif"
+    assert f["properties"]["date"] == "1973-03-20"
+    ring = f["geometry"]["coordinates"][0]
+    assert len(ring) == 5 and ring[0] == ring[-1]
+    assert 100 < ring[0][0] < 110 and 15 < ring[0][1] < 18  # lon/lat, not UTM
+    assert status_of(lambda: get_kh9_frames(kh9_dir=tmp_path / "nope")) == 404
 
 
 def test_explain_live_spark_on_cache_miss(tmp_path, monkeypatch):

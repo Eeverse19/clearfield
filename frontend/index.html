@@ -200,6 +200,7 @@
       <button id="btn-basemap" class="basemap-on" title="Toggle satellite basemap (online tiles; vector view works offline)">Satellite: on</button>
       <button id="btn-buildings" title="Toggle Microsoft building footprint points (local data)">Buildings: off</button>
       <button id="btn-craters" title="Toggle Barthelme KH-9 crater prediction points (1972-73 impact locations, not confirmed UXO)">Craters: off</button>
+      <button id="btn-kh9" title="Toggle KH-9 photo frame footprints (the ground the crater evidence covers)">KH-9 frames: off</button>
     </div>
     <div id="baseattr">Satellite: Esri World Imagery — Source: Esri, Vantor, Earthstar Geographics, and the GIS User Community (online; turn off for the offline vector map)</div>
     <div id="tooltip"></div>
@@ -238,6 +239,7 @@ const S = {
   basemap:true, baseImg:null, baseKey:null, baseLoading:null, baseProvider:"esri",
   buildings:false, buildingData:null, buildingKey:null, buildingLoading:null, buildingError:{},
   craters:false, craterData:null, craterKey:null, craterLoading:null, craterError:{},
+  kh9:false, kh9Frames:null, kh9Loading:false, kh9Error:null,
   finds: JSON.parse(localStorage.getItem("clearfield-finds-v1")||"[]"),
   findDraft:null,
 };
@@ -554,6 +556,52 @@ function updateCratersButton(){
   else b.textContent = "Craters: loading…";
   b.classList.toggle("basemap-on", S.craters && !!(rec && rec.data));
 }
+async function ensureKh9(){
+  if(!S.kh9 || S.kh9Frames || S.kh9Loading) return;
+  S.kh9Loading = true;
+  try {
+    const r = await fetch(`${API}/kh9-frames`);
+    if(!r.ok) throw new Error((await r.text()).slice(0, 200));
+    S.kh9Frames = (await r.json()).features || [];
+    S.kh9Error = null;
+  } catch(e) {
+    S.kh9Error = String(e.message || e);
+    announce(`KH-9 frames unavailable: ${S.kh9Error}`);
+  } finally {
+    S.kh9Loading = false;
+    updateKh9Button();
+    scheduleDraw();
+  }
+}
+function updateKh9Button(){
+  const b = $("btn-kh9"); if(!b) return;
+  b.textContent = !S.kh9 ? "KH-9 frames: off"
+    : S.kh9Frames ? `KH-9 frames: on (${S.kh9Frames.length})`
+    : S.kh9Error ? "KH-9 frames: unavailable" : "KH-9 frames: loading…";
+  b.classList.toggle("basemap-on", S.kh9 && !!S.kh9Frames);
+}
+function drawKh9(){
+  if(!S.kh9) return;
+  ensureKh9();
+  if(!S.kh9Frames) return;
+  ctx.font = `600 ${9/S.view.scale}px sans-serif`;
+  ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  for(const f of S.kh9Frames){
+    const ring = f.geometry.coordinates[0];
+    const p = new Path2D();
+    ring.forEach(([lon, lat], i)=>{ const [x, y] = proj(lon, lat); i ? p.lineTo(x, y) : p.moveTo(x, y); });
+    p.closePath();
+    ctx.fillStyle = "rgba(47, 179, 163, 0.07)"; ctx.fill(p);
+    ctx.strokeStyle = "rgba(47, 179, 163, 0.8)"; ctx.lineWidth = 1.1/S.view.scale; ctx.stroke(p);
+    const cx = ring.reduce((a, c)=>a + c[0], 0) / ring.length;
+    const cy = ring.reduce((a, c)=>a + c[1], 0) / ring.length;
+    const [x, y] = proj(cx, cy);
+    const label = `${f.properties.frame.replace("-8mpp.tif", "")} · ${f.properties.date || ""}`;
+    ctx.strokeStyle = "rgba(6,10,14,.85)"; ctx.lineWidth = 3/S.view.scale;
+    ctx.strokeText(label, x, y);
+    ctx.fillStyle = "#a9e8c9"; ctx.fillText(label, x, y);
+  }
+}
 function drawCraters(){
   if(!S.craters) return;
   ensureCraters();
@@ -641,6 +689,7 @@ function draw(){
   }
   drawBuildings();
   drawCraters();
+  drawKh9();
   ctx.setTransform(dpr,0,0,dpr,0,0);
 }
 // --- map interaction ---------------------------------------------------------
@@ -719,6 +768,11 @@ $("btn-buildings").onclick = ()=>{
 $("btn-craters").onclick = ()=>{
   S.craters = !S.craters;
   updateCratersButton();
+  draw();
+};
+$("btn-kh9").onclick = ()=>{
+  S.kh9 = !S.kh9;
+  updateKh9Button();
   draw();
 };
 // --- side panels -------------------------------------------------------------

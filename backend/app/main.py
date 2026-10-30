@@ -260,6 +260,47 @@ def craters(country: str, bbox: str | None = None, limit: int = 2_000_000):
     return get_craters(country, bbox, limit)
 
 
+# KH-9 frame footprints: the ground the crater evidence comes from.
+KH9_AREA_DATES = {"quang_tri": "1973-03-20", "tri_border": "1972-11-04"}
+
+
+def get_kh9_frames(kh9_dir=None) -> dict:
+    """Frame footprints as EPSG:4326 GeoJSON (from data/kh9/summary.json)."""
+    root = kh9_dir if kh9_dir is not None else config.REPO_ROOT / "data" / "kh9"
+    path = root / "kh9_match_summary.json"
+    if not path.exists():
+        raise HTTPException(
+            status_code=404,
+            detail="KH-9 frame index not found: run scripts/download_kh9.py "
+                   "and scripts/kh9_match.py first")
+    doc = json.loads(path.read_text(encoding="utf-8"))
+    from pyproj import Transformer
+
+    to_ll = Transformer.from_crs(32648, 4326, always_xy=True)
+    features = []
+    for fr in doc.get("frames", []):
+        b = fr["bounds_epsg32648"]
+        corners = [(b["left"], b["bottom"]), (b["right"], b["bottom"]),
+                   (b["right"], b["top"]), (b["left"], b["top"]),
+                   (b["left"], b["bottom"])]
+        ring = [list(to_ll.transform(x, y)) for x, y in corners]
+        features.append({
+            "type": "Feature",
+            "geometry": {"type": "Polygon", "coordinates": [ring]},
+            "properties": {"frame": fr["frame"], "area": fr["area"],
+                           "date": KH9_AREA_DATES.get(fr["area"]),
+                           "craters_assigned": fr.get("count"),
+                           "resolution": "8 m/px (Edinburgh 8mpp frame; "
+                                         "1 m/px original exists at DataShare)"},
+        })
+    return {"type": "FeatureCollection", "features": features}
+
+
+@app.get("/kh9-frames")
+def kh9_frames():
+    return get_kh9_frames()
+
+
 def _validate_location(location):
     if location is None:
         return None
