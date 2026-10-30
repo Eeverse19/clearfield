@@ -83,7 +83,18 @@ are **not** in `docs/thor/` — fold them into the spec before seeding
   `docs/getting-started.md`, `scripts/download_data.py`) plus untracked
   `pipelines/osm_exposure.py` and `tests/test_osm_exposure.py` — and now
   `docs/thor/` + this file. Commit in logical chunks, then re-push `main`.
-- [ ] **P0-4. Wire `/explain` (cache-first, then live Spark). (M) — PARTIAL 2026-10-29: cache-first DONE; live Spark still blocked on `META_API_KEY`.** `explain_request` (`backend/app/main.py:428`, wrapper `:519`) serves seeded `demo/cached-responses/explain-<ZONE>-en.json` templates over stored components with no key (6 ranked zones; `lo`/`km`/`vi` get a labeled English fallback), and keeps the honest 501 on cache miss. Regenerate seeds with `scripts/make_cached_explanations.py` after each scoring run. Remaining: live Spark wiring behind that 501 (needs `META_API_KEY`). Original task text follows for history:
+- [x] **P0-4. Wire `/explain` (cache-first, then live Spark). (M) — DONE
+  2026-10-30 (live half).** Cache-first landed 2026-10-29; live Spark
+  wired 2026-10-30 after META_API_KEY arrived: `agent/spark.py`
+  (facts-only prompt over stored components; never invents numbers,
+  missing = unscorable) is called by `explain_request` on a cache miss
+  (`source="live"`, `origin="muse_spark_live"`, never written into the
+  validated cache); 501 only when neither cache nor key can answer,
+  502 on upstream failure. First live call (LAO.18_1, unscorable)
+  answered honestly from stored components. Regenerate seeds with
+  `scripts/make_cached_explanations.py` after each scoring run.
+  Remaining stretch: genuine `lo`/`km` template translations (P1-4).
+  Original task text follows for history:
   `backend/app/main.py:188-195` returned 501 both ways then (now `explain_request` at `backend/app/main.py:428`);
   `agent/spark.py:9` raises `NotImplementedError` ("cache-first path lands
   first"). `demo/cached-responses/` contains only a README, so the cached
@@ -111,12 +122,15 @@ are **not** in `docs/thor/` — fold them into the spec before seeding
   calls ~16×). Pilot: Xiangkhoang tile 48QUG, 191 chips. Generalizing
   beyond one pinned scene is follow-up work, not a stub anymore.
 - [ ] **P1-2. `pipelines/sam_segment.py` — SAM 3.1 masks → GeoJSON, cached.
-  CODE DONE 2026-10-28, RUN BLOCKED.** Local SAM 3.1 (`.venv-sam`,
-  RTX 3080), text prompts from `docs/architecture.md`, per-(chip,prompt)
-  cache, polygonize + dedupe, `summary.json` on every run. Blocked only
-  on the gated `facebook/sam3.1` checkpoint (HF approval + file at
-  `data/models/sam3.1/`). "SAM sees only." First run: 2-chip smoke
-  (`--limit 2`), then the 191-chip scene; validate before scaling.
+  CODE DONE 2026-10-28; FIRST RUN DONE 2026-10-30 (API backend).** Local
+  SAM 3.1 (`.venv-sam`, RTX 3080) plus `--backend api` (Meta Model API
+  `sam-3.1`, wired 2026-10-30 once META_API_KEY landed). API smoke:
+  2-chip run clean, 0 detections; mid-chip diagnostics returned only a
+  whole-chip "disturbed earth" mask (now dropped by the >90% guard).
+  Zero-shot text prompting on 10 m/px Sentinel-2 is weak, as the
+  literature predicted — do not scale to 191 chips expecting craters;
+  the KH-9/U-Net path is the crater route. Local checkpoint
+  (`data/models/sam3.1/`) still absent, local backend untested live.
 - [ ] **P1-3. `field/triage.py` — offline Glimmer triage. (L)**
   Stub raising `NotImplementedError` (`field/triage.py:11`).
 - [ ] **P1-4. Report templates for Khmer and Lao. (M)**

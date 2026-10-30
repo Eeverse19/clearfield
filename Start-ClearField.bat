@@ -5,7 +5,12 @@ title ClearField
 
 where uv >nul 2>nul
 if %ERRORLEVEL%==0 (
-  start "ClearField server (close this window to stop)" cmd /k uv run uvicorn backend.app.main:app --port 8000
+  rem Load .env (gitignored) if present: uv run does not auto-load it.
+  if exist .env (
+    start "ClearField server (close this window to stop)" cmd /k uv run --env-file .env uvicorn backend.app.main:app --port 8000
+  ) else (
+    start "ClearField server (close this window to stop)" cmd /k uv run uvicorn backend.app.main:app --port 8000
+  )
 ) else (
   start "ClearField server (close this window to stop)" cmd /k .venv\Scripts\python.exe -m uvicorn backend.app.main:app --port 8000
 )

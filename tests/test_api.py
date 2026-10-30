@@ -121,6 +121,20 @@ def test_find_validation(tmp_path):
     assert status_of(lambda: create_find(dict(FIND), db_path=tmp_path / "missing.db")) == 503
 
 
+def test_explain_live_spark_on_cache_miss(tmp_path, monkeypatch):
+    from backend.app import main as backend_main
+
+    db = make_db(tmp_path)
+    monkeypatch.setattr(backend_main.spark_agent, "_api_key", lambda: "k")
+    monkeypatch.setattr(backend_main.spark_agent, "explain_zone",
+                        lambda row, lang="en": f"live:{row['id']}:{lang}")
+    out = backend_main.explain_request(
+        {"zone_id": "LAO.1_1", "lang": "en"}, db_path=db, cached_dir=tmp_path)
+    assert out["source"] == "live" and out["origin"] == "muse_spark_live"
+    assert out["explanation"] == "live:LAO.1_1:en"
+    assert out["score_components"]["crater_evidence"] == 2.14
+
+
 def test_buildings_points_bbox_and_missing(tmp_path):
     import array as _array
 
@@ -204,26 +218,38 @@ def test_explain_en_fallback_is_labeled(tmp_path):
 
 
 def test_explain_miss_still_501(tmp_path, monkeypatch):
+    from backend.app import main as backend_main
+
     db = make_db(tmp_path)
     empty = tmp_path / "empty"
     empty.mkdir()
+    # Pin "no key anywhere": config and the .env fallback both empty.
     monkeypatch.setattr(config, "META_API_KEY", "")
+    monkeypatch.setattr(backend_main.spark_agent, "_api_key", lambda: "")
     exc = explain_exc({"zone_id": "LAO.1_1"}, db_path=db, cached_dir=empty)
     assert exc.status_code == 501
     assert exc.detail == ("explain not implemented: META_API_KEY not set "
                           "(Spark runs on stored score components only)")
-    monkeypatch.setattr(config, "META_API_KEY", "x")
+    # With a key, a miss goes live; an upstream failure is a 502, not 501.
+    monkeypatch.setattr(backend_main.spark_agent, "_api_key", lambda: "k")
+
+    def _boom(row, lang="en"):
+        raise RuntimeError("upstream down")
+
+    monkeypatch.setattr(backend_main.spark_agent, "explain_zone", _boom)
     exc = explain_exc({"zone_id": "LAO.1_1"}, db_path=db, cached_dir=empty)
-    assert exc.status_code == 501
-    assert exc.detail == "explain not implemented: Spark agent not wired yet"
+    assert exc.status_code == 502
     # An unseeded (unranked) zone is a miss, not a special case.
-    monkeypatch.setattr(config, "META_API_KEY", "")
+    monkeypatch.setattr(backend_main.spark_agent, "_api_key", lambda: "")
     exc = explain_exc({"zone_id": "LAO.3_1"}, db_path=db, cached_dir=empty)
     assert exc.status_code == 501
 
 
 def test_explain_stale_cache_is_miss(tmp_path, monkeypatch):
+    from backend.app import main as backend_main
+
     monkeypatch.setattr(config, "META_API_KEY", "")
+    monkeypatch.setattr(backend_main.spark_agent, "_api_key", lambda: "")
     db = make_db(tmp_path)
     cached_dir = tmp_path / "cache"
     cached_dir.mkdir()

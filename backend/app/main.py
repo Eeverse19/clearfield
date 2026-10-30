@@ -2,8 +2,9 @@
 
 Implemented: health, country profiles, GET /zones and POST /finds over the
 local SQLite DB (WORKFLOW_SYNTHESIS.md section 3). /explain is cache-first:
-seeded templates over stored score components (no META_API_KEY needed),
-501 only on a cache miss; live Spark is still not wired.
+seeded templates over stored score components (no META_API_KEY needed);
+on a cache miss it calls live Muse Spark when a key is available,
+501 only when neither cache nor key can answer.
 Nothing here invents zones, scores, or explanations; missing DB is 503.
 Handlers (list_zones/create_find/explain_request) are plain functions so tests can call them
 directly with a tmp DB (sandboxed shells cannot open TestClient sockets).
@@ -21,6 +22,7 @@ from pathlib import Path
 from fastapi import Body, FastAPI, HTTPException
 from fastapi.responses import FileResponse, JSONResponse, Response
 
+from agent import spark as spark_agent
 from backend.app import config
 from backend.app.db import get_conn
 from backend.app.profiles import list_countries, load_country
@@ -428,10 +430,12 @@ def _load_cached_explain(cached_dir, zone_row: dict, lang: str):
 def explain_request(payload, db_path=None, cached_dir=None) -> dict:
     """Cache-first /explain handler (plain function, mirroring create_find).
 
-    Statuses: 200 cache hit; 501 cache miss (live Spark unwired, with or
-    without META_API_KEY); 422 malformed input / traversal-shaped ids /
-    unknown zone; 404 unknown country; 503 DB missing or malformed cache
-    file. The cache is checked before META_API_KEY, so a hit needs no key.
+    Statuses: 200 cache hit, or live Spark on a cache miss when a key is
+    available (source="live", never cached); 502 live Spark upstream
+    failure; 501 cache miss with no key; 422 malformed input /
+    traversal-shaped ids / unknown zone; 404 unknown country; 503 DB
+    missing or malformed cache file. The cache is checked before
+    META_API_KEY, so a hit needs no key.
     """
     if not isinstance(payload, dict):
         raise HTTPException(status_code=422,
@@ -506,13 +510,30 @@ def explain_request(payload, db_path=None, cached_dir=None) -> dict:
             "score_components": {f: zone_row[f]
                                   for f in EXPLAIN_COMPONENT_FIELDS},
         }
-    if not (config.META_API_KEY):  # cache miss and no key for live Spark
+    if not (config.META_API_KEY or spark_agent._api_key()):
+        # Cache miss and no key anywhere for live Spark.
         raise HTTPException(
             status_code=501,
             detail="explain not implemented: META_API_KEY not set (Spark runs on stored score components only)")
-    raise HTTPException(
-        status_code=501,
-        detail="explain not implemented: Spark agent not wired yet")
+    # Cache miss with a key: live Spark over the same stored components.
+    # Live text is returned, never written into the validated cache.
+    try:
+        text = spark_agent.explain_zone(zone_row, requested_lang)
+    except RuntimeError as exc:
+        raise HTTPException(status_code=502,
+                            detail=f"live Spark failed: {str(exc)[:300]}")
+    return {
+        "zone_id": zone_row["id"],
+        "country": zone_row["country"],
+        "admin_name": zone_row["admin_name"],
+        "lang": requested_lang,
+        "requested_lang": requested_lang,
+        "source": "live",
+        "origin": "muse_spark_live",
+        "explanation": text,
+        "score_components": {f: zone_row[f]
+                               for f in EXPLAIN_COMPONENT_FIELDS},
+    }
 
 
 @app.post("/explain")

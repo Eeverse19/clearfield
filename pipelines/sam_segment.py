@@ -28,10 +28,17 @@ Local env (RTX 3080 16 GB is enough for 1008 px image inference):
   its base install misses on Windows; rasterio works despite pip's
   numpy>=2 warning against sam3's numpy<2 pin -- verified 2026-10-27.)
 
-Caching: each (chip, prompt, threshold, min-area, checkpoint) result is
-stored under <out>/cache/<key>.geojson and never recomputed; if every
-chip is cached the model is not even loaded. Delete a cache file to
-redo that chip. Runs are resumable chip by chip.
+Backends: --backend local (above) or --backend api, which calls the
+same SAM 3.1 model on the Meta Model API (model `sam-3.1`,
+api.meta.ai/v1/responses, key from META_API_KEY or the repo .env;
+masks parsed with meta-sam-parser, confidence requested via
+metadata.include_confidence). The API route needs no checkpoint but
+bills per call, and chips leave this machine — your choice per run.
+
+Caching: each (chip, prompt, threshold, min-area, backend, checkpoint)
+result is stored under <out>/cache/<key>.geojson and never recomputed;
+if every chip is cached the model is not even loaded. Delete a cache
+file to redo that chip. Runs are resumable chip by chip.
 """
 
 import argparse
@@ -106,6 +113,8 @@ def masks_to_features(masks, scores, transform: dict, crs: str,
             m = m > 0
         if int(m.sum()) < min_area_px:
             continue
+        if int(m.sum()) > 0.90 * m.size:
+            continue  # degenerate whole-chip mask for vague concepts (observed via API)
         for geom, _ in raster_shapes(m.astype("uint8"), mask=m, transform=affine):
             g = shape(geom)
             props = {**base, "score": round(float(score), 4),
@@ -134,6 +143,121 @@ def load_processor(checkpoint: str | None, device: str, threshold: float):
             f"{type(e).__name__}: {e} | checkpoint {CHECKPOINT_REPO}/{CHECKPOINT_FILE} "
             f"is gated: request access at {ACCESS_URL}, run `hf auth login`, retry. "
             "No substitute model was used and no detections were produced.") from e
+
+
+META_API_URL = "https://api.meta.ai/v1"
+API_MODEL = "sam-3.1"
+
+
+def meta_api_key() -> str:
+    """META_API_KEY from the environment, else the gitignored repo .env."""
+    import os
+
+    key = os.environ.get("META_API_KEY", "").strip()
+    if key:
+        return key
+    env_file = REPO_ROOT / ".env"
+    if env_file.exists():
+        for line in env_file.read_text(encoding="utf-8").splitlines():
+            if line.startswith("META_API_KEY="):
+                return line.split("=", 1)[1].strip()
+    return ""
+
+
+def api_preflight(key: str) -> None:
+    """Fail fast (before any paid segmentation call) if auth/model is off."""
+    import urllib.error
+    import urllib.request
+
+    req = urllib.request.Request(f"{META_API_URL}/models",
+                                 headers={"Authorization": f"Bearer {key}"})
+    try:
+        with urllib.request.urlopen(req, timeout=60) as resp:
+            doc = json.load(resp)
+    except urllib.error.HTTPError as e:
+        raise CheckpointUnavailable(
+            f"Meta API auth failed: HTTP {e.code} {e.read().decode('utf-8', 'replace')[:200]}"
+        ) from e
+    ids = [m.get("id") for m in doc.get("data", [])]
+    if API_MODEL not in ids:
+        raise CheckpointUnavailable(
+            f"model {API_MODEL} not available on this API key (models: {ids})")
+
+
+def _api_segment_one(image_b64: str, prompt: str, key: str, threshold: float):
+    """One chip+prompt via Meta Model API -> (masks, scores) like run_chip."""
+    import urllib.error
+    import urllib.request
+
+    import numpy as np
+    from meta_sam_parser import (CompletedOutcome, decode_mask_to_raster,
+                                 image_segmentation_format)
+
+    payload = {
+        "model": API_MODEL,
+        "input": [{"type": "message", "role": "user", "content": [
+            {"type": "input_text", "text": prompt},
+            {"type": "input_image",
+             "image_url": f"data:image/png;base64,{image_b64}"},
+        ]}],
+        "metadata": {"include_confidence": "true", "mask_encoding": "one_bit"},
+    }
+    req = urllib.request.Request(
+        f"{META_API_URL}/responses", data=json.dumps(payload).encode(),
+        headers={"Content-Type": "application/json",
+                 "Authorization": f"Bearer {key}"})
+    try:
+        with urllib.request.urlopen(req, timeout=600) as resp:
+            doc = json.load(resp)
+    except urllib.error.HTTPError as e:
+        raise RuntimeError(
+            f"Meta API HTTP {e.code}: {e.read().decode('utf-8', 'replace')[:300]}") from e
+    text = doc.get("output_text") or ""
+    if not text:
+        parts = []
+        for item in doc.get("output", []) or []:
+            for part in item.get("content", []) or []:
+                if part.get("type") == "output_text" and part.get("text"):
+                    parts.append(part["text"])
+        text = "".join(parts)
+    if not text:
+        return [], []
+    parser = image_segmentation_format().create_parser()
+    parser.push(text)
+    result = parser.finish(CompletedOutcome()).result
+    box_conf = {}
+    mask_recs = []
+    for rec in result.records:
+        if rec.kind == "box":
+            box_conf[rec.object_id] = rec.confidence
+        elif rec.kind == "mask":
+            mask_recs.append(rec)
+    masks, scores = [], []
+    for rec in mask_recs:
+        score = rec.confidence if rec.confidence is not None \
+            else box_conf.get(rec.object_id)
+        if score is not None and score < threshold:
+            continue
+        raster = decode_mask_to_raster(rec.mask)  # bytes, 0/1, w*h
+        arr = np.frombuffer(raster, dtype=np.uint8).reshape(
+            rec.mask.height, rec.mask.width)
+        masks.append(arr > 0)
+        scores.append(float(score) if score is not None else 0.0)
+    return masks, scores
+
+
+def run_chip_api(chip_path: Path, prompts, key: str, threshold: float) -> dict[str, list]:
+    """{prompt: (masks, scores)} for one chip via the Meta Model API."""
+    import base64
+    import io
+
+    from PIL import Image
+
+    buf = io.BytesIO()
+    Image.open(chip_path).convert("RGB").save(buf, format="PNG")
+    image_b64 = base64.b64encode(buf.getvalue()).decode()
+    return {prompt: _api_segment_one(image_b64, prompt, key, threshold)
+            for prompt in prompts}
 
 
 def run_chip(processor, chip_path: Path, prompts, threshold: float) -> dict[str, list]:
@@ -167,6 +291,9 @@ def main(argv=None) -> int:
                     help="drop masks smaller than this (5 px = 500 m2 at 10 m/px)")
     ap.add_argument("--checkpoint", help="local .pt path (default: download facebook/sam3.1)")
     ap.add_argument("--device", default="cuda")
+    ap.add_argument("--backend", choices=("local", "api"), default="local",
+                    help="local: SAM 3.1 checkpoint in .venv-sam; api: Meta Model "
+                         "API model sam-3.1 (needs META_API_KEY, per-call billing)")
     ap.add_argument("--limit", type=int, help="only the first N chips (smoke test)")
     ap.add_argument("--out", type=Path, help="default data/imagery/sam/<scene_id>")
     args = ap.parse_args(argv)
@@ -191,11 +318,15 @@ def main(argv=None) -> int:
         "(Sentinel-2 10 m/px; NOT verified individual craters)",
     }
 
+    summary["backend"] = args.backend
+
     def key_for(chip, prompt):
         return cache_key({"scene": manifest["scene_id"], "chip": chip["chip_id"],
                           "prompt": prompt, "threshold": args.threshold,
                           "min_area_px": args.min_area_px,
-                          "checkpoint": args.checkpoint or CHECKPOINT_FILE})
+                          "backend": args.backend,
+                          "checkpoint": (args.checkpoint or CHECKPOINT_FILE)
+                          if args.backend == "local" else API_MODEL})
 
     pending = [(chip, p) for chip in chips for p in args.prompts
                if not (cache_dir / f"{key_for(chip, p)}.geojson").exists()]
@@ -203,15 +334,28 @@ def main(argv=None) -> int:
 
     features: list[dict] = []
     if pending:
+        processor = None
+        api_key = ""
         try:
-            processor, ckpt_used = load_processor(args.checkpoint, args.device, args.threshold)
+            if args.backend == "api":
+                api_key = meta_api_key()
+                if not api_key:
+                    raise CheckpointUnavailable(
+                        "META_API_KEY not set (environment or repo .env); "
+                        "API backend cannot authenticate. No calls were made.")
+                api_preflight(api_key)
+                summary["model"] = API_MODEL
+            else:
+                processor, ckpt_used = load_processor(
+                    args.checkpoint, args.device, args.threshold)
+                summary["checkpoint_used"] = ckpt_used
         except CheckpointUnavailable as e:
-            summary.update(status="failed", stage="checkpoint_load", error=str(e))
+            stage = "api_preflight" if args.backend == "api" else "checkpoint_load"
+            summary.update(status="failed", stage=stage, error=str(e))
             (out_dir / "summary.json").write_text(json.dumps(summary, indent=2), encoding="utf-8")
-            print(f"[sam_segment] FAILED at checkpoint load: {e}", file=sys.stderr)
+            print(f"[sam_segment] FAILED at {stage}: {e}", file=sys.stderr)
             print(f"[sam_segment] failure recorded in {out_dir / 'summary.json'}")
             return 2
-        summary["checkpoint_used"] = ckpt_used
         tiles_root = args.manifest.parent
         failed = []
         todo_chips = sorted({c["chip_id"] for c, _ in pending})
@@ -219,9 +363,12 @@ def main(argv=None) -> int:
         for chip_id in todo_chips:
             chip = by_id[chip_id]
             try:
-                results = run_chip(processor, tiles_root / chip["file"],
-                                   [p for c, p in pending if c["chip_id"] == chip_id],
-                                   args.threshold)
+                chip_prompts = [p for c, p in pending if c["chip_id"] == chip_id]
+                results = run_chip_api(tiles_root / chip["file"], chip_prompts,
+                                       api_key, args.threshold) \
+                    if args.backend == "api" else run_chip(
+                        processor, tiles_root / chip["file"], chip_prompts,
+                        args.threshold)
             except Exception as e:  # record per-chip failure, keep going
                 failed.append({"chip_id": chip_id, "error": f"{type(e).__name__}: {e}"})
                 continue
