@@ -17,8 +17,8 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[1]
 INDEX = REPO_ROOT / "INDEX.md"
 START, END = "<!-- FILEMAP:START -->", "<!-- FILEMAP:END -->"
-EXCLUDE_DIRS = {".git", ".venv", ".venv-sam", ".pytest_cache", "__pycache__",
-                "data", "node_modules", ".agents", ".opencode"}
+EXCLUDE_DIRS = {".git", ".venv", ".venv-sam", ".venv-unet", ".pytest_cache",
+                "__pycache__", "data", "node_modules", ".agents", ".opencode"}
 EXCLUDE_SUFFIXES = {".pyc", ".db", ".sqlite3"}
 
 

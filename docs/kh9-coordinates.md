@@ -50,8 +50,13 @@ crater *shape* is visible only at 1 m/px.
 
 ## Producing coordinates for new areas (e.g. Xiangkhoang)
 
-The detector is not the bottleneck: `data/barthelme/models.zip` weights
-are whole pickles that load with `segmentation-models-pytorch==0.3.3`
+The detector is not the bottleneck — and is now verified locally:
+`scripts/barthelme_reproduce.py` (in `.venv-unet`) reproduced the
+authors' test-split scores on 2026-10-30: Quang Tri per-object F1
+0.639 (published 0.64; P 0.685/R 0.599), pixel F1 0.654 (0.65);
+tri-border F1 0.439 (0.44), pixel 0.407 (0.41). Weights in
+`data/barthelme/models.zip` are whole pickles that load with
+`segmentation-models-pytorch==0.3.3`
 (installed with `--no-deps`; a plain install breaks the SAM env's timm).
 Recipe: 256x256 tiles at 1 m/px, per-tile min-max scaling, argmax over
 7 classes, class 6->0, remove <25 px objects/holes, majority-class
