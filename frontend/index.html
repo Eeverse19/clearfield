@@ -199,6 +199,7 @@
       <button id="btn-findmode">Record a find</button>
       <button id="btn-basemap" class="basemap-on" title="Toggle satellite basemap (online tiles; vector view works offline)">Satellite: on</button>
       <button id="btn-buildings" title="Toggle Microsoft building footprint points (local data)">Buildings: off</button>
+      <button id="btn-craters" title="Toggle Barthelme KH-9 crater prediction points (1972-73 impact locations, not confirmed UXO)">Craters: off</button>
     </div>
     <div id="baseattr">Satellite: Esri World Imagery — Source: Esri, Vantor, Earthstar Geographics, and the GIS User Community (online; turn off for the offline vector map)</div>
     <div id="tooltip"></div>
@@ -236,6 +237,7 @@ const S = {
   view:{scale:1, tx:0, ty:0}, fitDone:false, findMode:false,
   basemap:true, baseImg:null, baseKey:null, baseLoading:null, baseProvider:"esri",
   buildings:false, buildingData:null, buildingKey:null, buildingLoading:null, buildingError:{},
+  craters:false, craterData:null, craterKey:null, craterLoading:null, craterError:{},
   finds: JSON.parse(localStorage.getItem("clearfield-finds-v1")||"[]"),
   findDraft:null,
 };
@@ -517,6 +519,57 @@ function drawBuildings(){
     ctx.fillRect(x, y, s, s);
   }
 }
+// --- crater prediction points (Barthelme KH-9, local /craters endpoint) ---
+// Impact locations from 1972-73 photos, NOT confirmed unexploded ordnance.
+async function ensureCraters(){
+  if(!S.craters || !canvas._w) return;
+  const raw = viewBBox(), padX = (raw[2]-raw[0])*0.5, padY = (raw[3]-raw[1])*0.5;
+  const bb = [raw[0]-padX, raw[1]-padY, raw[2]+padX, raw[3]+padY].map(v=>Math.round(v*10)/10);
+  const key = `${S.country}|${bb.join(",")}`;
+  if(S.craterKey===key || S.craterLoading===key) return;
+  S.craterLoading = key;
+  try {
+    const r = await fetch(`${API}/craters/${S.country}?bbox=${bb.join(",")}&limit=2000000`);
+    if(!r.ok) throw new Error((await r.text()).slice(0, 200));
+    const data = new Float32Array(await r.arrayBuffer());
+    S.craterData = {data, bb, total: +(r.headers.get("X-Crater-Total") || 0),
+                    truncated: r.headers.get("X-Crater-Truncated")==="true"};
+    S.craterKey = key;
+    delete S.craterError[S.country];
+  } catch(e) {
+    S.craterError[S.country] = String(e.message || e);
+    announce(`Craters unavailable for ${S.country}: ${S.craterError[S.country]}`);
+  } finally {
+    if(S.craterLoading===key) S.craterLoading = null;
+    updateCratersButton();
+    scheduleDraw();
+  }
+}
+function updateCratersButton(){
+  const b = $("btn-craters"); if(!b) return;
+  const rec = S.craterData;
+  if(!S.craters) b.textContent = "Craters: off";
+  else if(rec && rec.data) b.textContent = `Craters: on (${(rec.data.length/2).toLocaleString()} in view${rec.truncated?"+":""})`;
+  else if(S.craterError[S.country]) b.textContent = "Craters: unavailable";
+  else b.textContent = "Craters: loading…";
+  b.classList.toggle("basemap-on", S.craters && !!(rec && rec.data));
+}
+function drawCraters(){
+  if(!S.craters) return;
+  ensureCraters();
+  const rec = S.craterData;
+  if(!rec || !rec.data) return;
+  const data = rec.data;
+  const [lonMin, latMin, lonMax, latMax] = viewBBox();
+  const s = 1.5 / S.view.scale;
+  ctx.fillStyle = "rgba(255, 92, 66, 0.6)";
+  for(let i = 0; i < data.length; i += 2){
+    const lon = data[i], lat = data[i+1];
+    if(lon < lonMin || lon > lonMax || lat < latMin || lat > latMax) continue;
+    const [x, y] = proj(lon, lat);
+    ctx.fillRect(x, y, s, s);
+  }
+}
 function draw(){
   if(!canvas.width) return;
   const dpr = canvas._dpr||1;
@@ -573,6 +626,7 @@ function draw(){
     ctx.strokeStyle="#0d1218"; ctx.lineWidth=1.4/S.view.scale; ctx.stroke();
   }
   drawBuildings();
+  drawCraters();
   ctx.setTransform(dpr,0,0,dpr,0,0);
 }
 // --- map interaction ---------------------------------------------------------
@@ -646,6 +700,11 @@ $("btn-basemap").onclick = ()=>{
 $("btn-buildings").onclick = ()=>{
   S.buildings = !S.buildings;
   updateBuildingsButton();
+  draw();
+};
+$("btn-craters").onclick = ()=>{
+  S.craters = !S.craters;
+  updateCratersButton();
   draw();
 };
 // --- side panels -------------------------------------------------------------

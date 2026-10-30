@@ -24,6 +24,11 @@ diagonal strips; bounds-only assignment put 23.6% on nodata corners).
 Per country: Vietnam 511,541; Laos 24,197; Cambodia 5,659.
 Outputs: `bomb_coordinates.csv.gz` (38 MB), `bomb_coordinates.geojson`
 (349 MB, in-frame subset = all), `kh9_match_summary.json`.
+GUI: `scripts/make_crater_points.py` distills the DB centroids to
+`data/kh9/crater_points_{country}.f32`, served bbox-filtered by
+`GET /craters/{country}` and drawn by the map's Craters toggle
+(red points over the satellite basemap; labelled as 1972-73 impact
+locations, not confirmed UXO).
 
 ## What it is not
 

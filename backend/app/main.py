@@ -155,28 +155,25 @@ BUILDING_LOCATIONS = {"laos": "Laos", "cambodia": "Cambodia",
                       "vietnam": "Vietnam", "ukraine": "Ukraine"}
 
 
-def get_buildings(country: str, bbox: str | None = None, limit: int = 2_000_000,
-                  buildings_dir=None) -> Response:
-    if country not in BUILDING_LOCATIONS:
-        raise HTTPException(status_code=404, detail=f"unknown country: {country}")
+def _parse_bbox(bbox: str | None):
+    if not bbox:
+        return None
+    try:
+        bounds = tuple(float(x) for x in bbox.split(","))
+        assert len(bounds) == 4 and bounds[0] < bounds[2] and bounds[1] < bounds[3]
+        return bounds
+    except (ValueError, AssertionError):
+        raise HTTPException(status_code=422,
+                            detail="bbox must be minlon,minlat,maxlon,maxlat")
+
+
+def _points_response(path, bounds, limit: int, kind: str) -> Response:
+    """Serve a float32-le (lon, lat) point file, bbox-filtered and capped.
+
+    Shared by /buildings and /craters; headers are X-{kind}-Count etc.
+    """
     if not 1 <= limit <= 5_000_000:
         raise HTTPException(status_code=422, detail="limit must be in 1..5000000")
-    bounds = None
-    if bbox:
-        try:
-            bounds = tuple(float(x) for x in bbox.split(","))
-            assert len(bounds) == 4 and bounds[0] < bounds[2] and bounds[1] < bounds[3]
-        except (ValueError, AssertionError):
-            raise HTTPException(status_code=422,
-                                detail="bbox must be minlon,minlat,maxlon,maxlat")
-    root = buildings_dir if buildings_dir is not None else \
-        config.REPO_ROOT / "data" / "buildings"
-    path = root / BUILDING_LOCATIONS[country] / "centroids.f32"
-    if not path.exists():
-        raise HTTPException(
-            status_code=404,
-            detail=f"building points not generated for {country}: run "
-                   f"scripts/make_building_points.py --country {country} first")
     try:
         import numpy as np
 
@@ -187,12 +184,12 @@ def get_buildings(country: str, bbox: str | None = None, limit: int = 2_000_000,
                     & (arr[:, 1] >= bounds[1]) & (arr[:, 1] <= bounds[3]))
             arr = arr[mask]
         truncated = bool(arr.shape[0] > limit)
-        body = arr[:limit].astype("<f4").tobytes()
         return Response(
-            content=body, media_type="application/octet-stream",
-            headers={"X-Building-Count": str(min(int(arr.shape[0]), limit)),
-                     "X-Building-Total": str(total),
-                     "X-Building-Truncated": str(truncated).lower()})
+            content=arr[:limit].astype("<f4").tobytes(),
+            media_type="application/octet-stream",
+            headers={f"X-{kind}-Count": str(min(int(arr.shape[0]), limit)),
+                     f"X-{kind}-Total": str(total),
+                     f"X-{kind}-Truncated": str(truncated).lower()})
     except ImportError:  # pragma: no cover - numpy ships with shapely deps
         pass
     pts = array.array("f")
@@ -211,14 +208,56 @@ def get_buildings(country: str, bbox: str | None = None, limit: int = 2_000_000,
         out.extend((lon, lat))
     return Response(
         content=out.tobytes(), media_type="application/octet-stream",
-        headers={"X-Building-Count": str(len(out) // 2),
-                 "X-Building-Total": str(total),
-                 "X-Building-Truncated": str(truncated).lower()})
+        headers={f"X-{kind}-Count": str(len(out) // 2),
+                 f"X-{kind}-Total": str(total),
+                 f"X-{kind}-Truncated": str(truncated).lower()})
+
+
+def get_buildings(country: str, bbox: str | None = None, limit: int = 2_000_000,
+                  buildings_dir=None) -> Response:
+    if country not in BUILDING_LOCATIONS:
+        raise HTTPException(status_code=404, detail=f"unknown country: {country}")
+    bounds = _parse_bbox(bbox)
+    root = buildings_dir if buildings_dir is not None else \
+        config.REPO_ROOT / "data" / "buildings"
+    path = root / BUILDING_LOCATIONS[country] / "centroids.f32"
+    if not path.exists():
+        raise HTTPException(
+            status_code=404,
+            detail=f"building points not generated for {country}: run "
+                   f"scripts/make_building_points.py --country {country} first")
+    return _points_response(path, bounds, limit, "Building")
 
 
 @app.get("/buildings/{country}")
 def buildings(country: str, bbox: str | None = None, limit: int = 2_000_000):
     return get_buildings(country, bbox, limit)
+
+
+# Crater centroids (Barthelme KH-9 predictions) for the GUI overlay.
+# These are bomb-impact locations from 1972-73 photos, NOT confirmed
+# unexploded ordnance (docs/kh9-coordinates.md).
+CRATER_COUNTRIES = ("laos", "cambodia", "vietnam")
+
+
+def get_craters(country: str, bbox: str | None = None, limit: int = 2_000_000,
+                kh9_dir=None) -> Response:
+    if country not in CRATER_COUNTRIES:
+        raise HTTPException(status_code=404, detail=f"unknown country: {country}")
+    bounds = _parse_bbox(bbox)
+    root = kh9_dir if kh9_dir is not None else config.REPO_ROOT / "data" / "kh9"
+    path = root / f"crater_points_{country}.f32"
+    if not path.exists():
+        raise HTTPException(
+            status_code=404,
+            detail=f"crater points not generated for {country}: run "
+                   f"scripts/make_crater_points.py first")
+    return _points_response(path, bounds, limit, "Crater")
+
+
+@app.get("/craters/{country}")
+def craters(country: str, bbox: str | None = None, limit: int = 2_000_000):
+    return get_craters(country, bbox, limit)
 
 
 def _validate_location(location):

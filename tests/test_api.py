@@ -16,7 +16,7 @@ from fastapi import HTTPException
 from backend.app import config
 from backend.app.main import (build_cached_explanation, countries, country,
                               create_find, explain, explain_request,
-                              get_buildings, health, index, list_zones)
+                              get_buildings, get_craters, health, index, list_zones)
 
 SCHEMA = Path(__file__).resolve().parents[1] / "db" / "schema.local.sql"
 GEOM = '{"type": "MultiPolygon", "coordinates": []}'
@@ -119,6 +119,18 @@ def test_find_validation(tmp_path):
     assert conn.execute("SELECT COUNT(*) FROM finds").fetchone()[0] == 0  # no partial writes
     conn.close()
     assert status_of(lambda: create_find(dict(FIND), db_path=tmp_path / "missing.db")) == 503
+
+
+def test_craters_points_bbox_and_missing(tmp_path):
+    import array as _array
+
+    pts = _array.array("f", [106.8, 17.0, 100.0, 10.0, 107.5, 16.5])
+    (tmp_path / "crater_points_vietnam.f32").write_bytes(pts.tobytes())
+    resp = get_craters("vietnam", bbox="106,16,108,18", kh9_dir=tmp_path)
+    assert resp.headers["x-crater-count"] == "2"
+    assert resp.headers["x-crater-total"] == "3"
+    assert status_of(lambda: get_craters("laos", kh9_dir=tmp_path)) == 404
+    assert status_of(lambda: get_craters("ukraine", kh9_dir=tmp_path)) == 404
 
 
 def test_explain_live_spark_on_cache_miss(tmp_path, monkeypatch):
