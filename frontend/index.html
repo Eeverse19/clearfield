@@ -202,6 +202,7 @@
       <button id="btn-craters" title="Toggle Barthelme KH-9 crater prediction points (1972-73 impact locations, not confirmed UXO)">Craters: off</button>
       <button id="btn-kh9" title="Toggle KH-9 photo frame footprints (the ground the crater evidence covers)">KH-9 frames: off</button>
       <button id="btn-worldstrat" title="Toggle WorldStrat 1.5 m/px chip footprints (benchmark imagery pockets)">WorldStrat: off</button>
+      <button id="btn-oam" title="Toggle OpenAerialMap drone pockets (cm GSD spot-validation sites)">Drone pockets: off</button>
     </div>
     <div id="baseattr">Satellite: Esri World Imagery — Source: Esri, Vantor, Earthstar Geographics, and the GIS User Community (online; turn off for the offline vector map)</div>
     <div id="tooltip"></div>
@@ -242,6 +243,7 @@ const S = {
   craters:false, craterData:null, craterKey:null, craterLoading:null, craterError:{},
   kh9:false, kh9Frames:null, kh9Loading:false, kh9Error:null,
   worldstrat:false, wsChips:null, wsLoading:false, wsError:null,
+  oam:false, oamPockets:null, oamLoading:false, oamError:null,
   finds: JSON.parse(localStorage.getItem("clearfield-finds-v1")||"[]"),
   findDraft:null,
 };
@@ -651,6 +653,57 @@ function drawWorldstrat(){
     ctx.fillStyle = "#d9c2ff"; ctx.fillText(label, x, y);
   }
 }
+async function ensureOam(){
+  if(!S.oam || S.oamPockets || S.oamLoading) return;
+  S.oamLoading = true;
+  try {
+    const r = await fetch(`${API}/oam-pockets`);
+    if(!r.ok) throw new Error((await r.text()).slice(0, 200));
+    S.oamPockets = (await r.json()).features || [];
+    S.oamError = null;
+  } catch(e) {
+    S.oamError = String(e.message || e);
+    announce(`Drone pockets unavailable: ${S.oamError}`);
+  } finally {
+    S.oamLoading = false;
+    updateOamButton();
+    scheduleDraw();
+  }
+}
+function updateOamButton(){
+  const b = $("btn-oam"); if(!b) return;
+  const n = S.oamPockets ? S.oamPockets.filter(f=>f.properties.country===S.country).length : 0;
+  b.textContent = !S.oam ? "Drone pockets: off"
+    : S.oamPockets ? `Drone pockets: on (${n})`
+    : S.oamError ? "Drone pockets: unavailable" : "Drone pockets: loading…";
+  b.classList.toggle("basemap-on", S.oam && !!S.oamPockets);
+}
+function drawOam(){
+  if(!S.oam) return;
+  ensureOam();
+  if(!S.oamPockets) return;
+  ctx.font = `600 ${9/S.view.scale}px sans-serif`;
+  ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  for(const f of S.oamPockets){
+    if(f.properties.country !== S.country || !f.geometry) continue;
+    for(const poly of (f.geometry.type === "MultiPolygon" ? f.geometry.coordinates : [f.geometry.coordinates])){
+      const ring = poly[0];
+      const p = new Path2D();
+      ring.forEach(([lon, lat], i)=>{ const [x, y] = proj(lon, lat); i ? p.lineTo(x, y) : p.moveTo(x, y); });
+      p.closePath();
+      ctx.fillStyle = "rgba(255, 170, 60, 0.12)"; ctx.fill(p);
+      ctx.strokeStyle = "rgba(255, 170, 60, 0.9)"; ctx.lineWidth = 1.1/S.view.scale; ctx.stroke(p);
+      const cx = ring.reduce((a, c)=>a + c[0], 0) / ring.length;
+      const cy = ring.reduce((a, c)=>a + c[1], 0) / ring.length;
+      const [x, y] = proj(cx, cy);
+      const when = (f.properties.acquisition_start || "").slice(0, 10);
+      const label = `OAM ${when}${f.properties.downloaded ? " · downloaded" : ""}`;
+      ctx.strokeStyle = "rgba(6,10,14,.85)"; ctx.lineWidth = 3/S.view.scale;
+      ctx.strokeText(label, x, y);
+      ctx.fillStyle = "#ffd9a0"; ctx.fillText(label, x, y);
+    }
+  }
+}
 function drawCraters(){
   if(!S.craters) return;
   ensureCraters();
@@ -740,6 +793,7 @@ function draw(){
   drawCraters();
   drawKh9();
   drawWorldstrat();
+  drawOam();
   ctx.setTransform(dpr,0,0,dpr,0,0);
 }
 // --- map interaction ---------------------------------------------------------
@@ -828,6 +882,11 @@ $("btn-kh9").onclick = ()=>{
 $("btn-worldstrat").onclick = ()=>{
   S.worldstrat = !S.worldstrat;
   updateWorldstratButton();
+  draw();
+};
+$("btn-oam").onclick = ()=>{
+  S.oam = !S.oam;
+  updateOamButton();
   draw();
 };
 // --- side panels -------------------------------------------------------------
@@ -926,7 +985,10 @@ function renderLayers(){
   if(false) Object.entries(LAYERS).map(([k,L])=>
     `<button class="layer ${k===S.layer?"on":""}" data-l="${k}"><span class="sw" style="background:${L.stops[2]}"></span>${L.label}</button>`).join("");
   document.querySelectorAll("#layers .layer").forEach(b=> b.onclick=()=>{ if(b.disabled) return; S.layer=b.dataset.l; renderLayers(); renderRanks(); draw(); layerAnnounce(); });
-  renderLegend(); renderAttribution(); updateLayerBanner(); if(false){ const L=LAYERS[S.layer];
+  renderLegend(); renderAttribution(); updateLayerBanner();
+  if(typeof updateOamButton === "function") updateOamButton();
+  if(typeof updateWorldstratButton === "function") updateWorldstratButton();
+  if(false){ const L=LAYERS[S.layer];
   // Craft R1: stepped swatches, no decorative gradient (map fills are flat per zone)
   // legacy continuous legend removed
   // (removed)

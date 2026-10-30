@@ -337,6 +337,34 @@ def worldstrat_chips():
     return get_worldstrat_chips()
 
 
+def get_oam_pockets(oam_dir=None) -> dict:
+    """OpenAerialMap pocket footprints (data/oam/catalog.geojson)."""
+    import csv as _csv
+
+    root = oam_dir if oam_dir is not None else config.REPO_ROOT / "data" / "oam"
+    path = root / "catalog.geojson"
+    if not path.exists():
+        raise HTTPException(
+            status_code=404,
+            detail="OpenAerialMap catalog not found: run "
+                   "scripts/download_oam.py first")
+    doc = json.loads(path.read_text(encoding="utf-8"))
+    downloaded = {}
+    index = root / "index.csv"
+    if index.exists():
+        with index.open(newline="", encoding="utf-8") as fh:
+            for row in _csv.DictReader(fh):
+                downloaded[row["id"]] = row["downloaded"] == "True"
+    for f in doc.get("features", []):
+        f["properties"]["downloaded"] = downloaded.get(f["properties"]["id"], False)
+    return doc
+
+
+@app.get("/oam-pockets")
+def oam_pockets():
+    return get_oam_pockets()
+
+
 def _validate_location(location):
     if location is None:
         return None

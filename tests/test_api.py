@@ -17,7 +17,8 @@ from backend.app import config
 from backend.app.main import (build_cached_explanation, countries, country,
                               create_find, explain, explain_request,
                               get_buildings, get_craters, get_kh9_frames,
-                              get_worldstrat_chips, health, index, list_zones)
+                              get_oam_pockets, get_worldstrat_chips,
+                              health, index, list_zones)
 
 SCHEMA = Path(__file__).resolve().parents[1] / "db" / "schema.local.sql"
 GEOM = '{"type": "MultiPolygon", "coordinates": []}'
@@ -162,6 +163,20 @@ def test_worldstrat_chips_geojson(tmp_path):
     assert f["properties"]["chip_id"] == "Landcover-1"
     assert f["geometry"]["coordinates"][0][2] == [103.3, 20.3]
     assert status_of(lambda: get_worldstrat_chips(worldstrat_dir=tmp_path / "x")) == 404
+
+
+def test_oam_pockets_merges_downloaded_flag(tmp_path):
+    import json as _json
+
+    (tmp_path / "catalog.geojson").write_text(_json.dumps({
+        "type": "FeatureCollection", "features": [
+            {"type": "Feature", "geometry": None,
+             "properties": {"id": "a1", "country": "laos"}}]}), encoding="utf-8")
+    (tmp_path / "index.csv").write_text(
+        "id,country,downloaded\na1,laos,True\n", encoding="utf-8")
+    out = get_oam_pockets(oam_dir=tmp_path)
+    assert out["features"][0]["properties"]["downloaded"] is True
+    assert status_of(lambda: get_oam_pockets(oam_dir=tmp_path / "x")) == 404
 
 
 def test_explain_live_spark_on_cache_miss(tmp_path, monkeypatch):
