@@ -606,6 +606,20 @@ function draw(){
     ctx.globalAlpha = 1;
     if(S.layer==="official" && z.priority_rank!=null){ const [x,y]=proj(z._c[0],z._c[1]); ctx.fillStyle="#0d1218"; ctx.font=`bold ${12/S.view.scale}px sans-serif`; ctx.textAlign="center"; ctx.textBaseline="middle"; ctx.fillText("#"+z.priority_rank,x,y); }
   }
+  // zone name labels at bbox centres (screen-constant size)
+  ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  ctx.font = `600 ${11/S.view.scale}px sans-serif`;
+  for(const z of S.zones){
+    if(!z._c || !z.admin_name) continue;
+    const filtered = (S.surveyed!=="all" && z.surveyed_status!==S.surveyed);
+    const [x,y0] = proj(z._c[0], z._c[1]);
+    const y = y0 + ((S.layer==="official" && z.priority_rank!=null) ? 13/S.view.scale : 0);
+    ctx.globalAlpha = filtered ? 0.3 : 0.92;
+    ctx.strokeStyle = "rgba(6,10,14,.85)"; ctx.lineWidth = 3/S.view.scale;
+    ctx.strokeText(z.admin_name, x, y);
+    ctx.fillStyle = "#eef3f8"; ctx.fillText(z.admin_name, x, y);
+  }
+  ctx.globalAlpha = 1;
   // demo province marker (diamond at bbox centre)
   if(demoId){
     const d = S.zones.find(z=>z.id===demoId);
